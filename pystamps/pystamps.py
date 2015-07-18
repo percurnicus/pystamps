@@ -20,7 +20,7 @@ class DisplayImages(QtGui.QWidget):
         self.X = 0
         self.Y = 0
         self.img_dict = {}
-        self.posit = {}
+        self.posdict = {}
         pdsimages = []
         # TODO Expand the types of extensions to search for
         extensions = ['img', 'IMG']
@@ -35,9 +35,11 @@ class DisplayImages(QtGui.QWidget):
             picture.setPixmap(pixmap)
             picture.setStyleSheet("""QLabel {background-color: black;
                                   border: 3px solid rgb(240, 198, 0)}""")
+            picture.setScaledContents(True)
             grid.addWidget(picture, x, y, QtCore.Qt.AlignCenter)
-            self.posit[(x, y)] = {'name': file_name, 'pict': picture,
-                                  'select': False}
+            grid.setGeometry(QtCore.QRect(x, y, 200, 200))
+            self.posdict[(x, y)] = {'name': file_name, 'pict': picture,
+                                    'select': False}
             y += 1.0
             if y == 4.0:
                 x += 1.0
@@ -47,16 +49,16 @@ class DisplayImages(QtGui.QWidget):
 
     def select_image(self, posy, posx):
         """Updates the border indicating selected/not selected"""
-        if self.posit[(posy, posx)]['select']:
-            pict = self.posit[(posy, posx)]['pict']
+        if self.posdict[(posy, posx)]['select']:
+            pict = self.posdict[(posy, posx)]['pict']
             pict.setStyleSheet("QLabel {border: 3px solid rgb(240, 198, 0)}")
-            self.posit[(posy, posx)]['select'] = False
-            return self.posit
+            self.posdict[(posy, posx)]['select'] = False
+            return self.posdict
         else:
-            pict = self.posit[(posy, posx)]['pict']
+            pict = self.posdict[(posy, posx)]['pict']
             pict.setStyleSheet("QLabel {border: 3px solid rgb(255,255,255)}")
-            self.posit[(posy, posx)]['select'] = True
-            return self.posit
+            self.posdict[(posy, posx)]['select'] = True
+            return self.posdict
 
 
 class Pystamps(QtGui.QMainWindow):
@@ -92,6 +94,10 @@ class Pystamps(QtGui.QMainWindow):
         cp = QtGui.QDesktopWidget().availableGeometry().center()
         qr.moveCenter(cp)
         self.move(qr.topLeft())
+        palette = QtGui.QPalette()
+        palette.setColor(QtGui.QPalette.Background, QtCore.Qt.black)
+        self.setPalette(palette)
+        self.setFixedSize(self.sizeHint())
         self.setWindowTitle('pdsimage')
         self.show()
 
@@ -103,21 +109,21 @@ class Pystamps(QtGui.QMainWindow):
         self.disp.select_image(self.Y, self.X)
 
     def print_file(self):
-        for item in self.disp.posit:
-            if self.disp.posit[item]['select']:
-                print os.path.abspath(self.disp.posit[item]['name'])
+        for item in self.disp.posdict:
+            if self.disp.posdict[item]['select']:
+                print os.path.abspath(self.disp.posdict[item]['name'])
             else:
                 pass
         print ""
 
     def select_all(self):
         if self.all_count % 2 == 0:
-            for item in self.disp.posit:
-                self.disp.posit[item]['select'] = False
+            for item in self.disp.posdict:
+                self.disp.posdict[item]['select'] = False
                 self.disp.select_image(item[0], item[1])
         else:
-            for item in self.disp.posit:
-                self.disp.posit[item]['select'] = True
+            for item in self.disp.posdict:
+                self.disp.posdict[item]['select'] = True
                 self.disp.select_image(item[0], item[1])
         self.all_count += 1
 
