@@ -87,6 +87,11 @@ class Pystamps(QtGui.QMainWindow):
         self.all_count = 0
 
     def pystamps(self):
+         # Set Bakcground to be black
+        palette = QtGui.QPalette()
+        palette.setColor(QtGui.QPalette.Background, QtCore.Qt.black)
+        self.setPalette(palette)
+
         # Create Actions for tool bar
         exitAction = QtGui.QAction('&Exit', self)
         exitAction.triggered.connect(self.close)
@@ -95,19 +100,20 @@ class Pystamps(QtGui.QMainWindow):
         allAction = QtGui.QAction('&Select All/None', self)
         allAction.triggered.connect(self.select_all)
 
+
         # Assign actions to the tool bar object
         self.exit = self.addToolBar('Exit')
         self.exit.addAction(exitAction)
+        self.exit.setStyleSheet("QToolBar {background-color: gray}")
         self.print_image_path = self.addToolBar('Print Selected Filenames')
         self.print_image_path.addAction(printAction)
+        self.print_image_path.setStyleSheet("QToolBar {background-color: gray}")
         self.selectAll = self.addToolBar('Select All/None')
         self.selectAll.addAction(allAction)
+        self.selectAll.setStyleSheet("QToolBar {background-color: gray}")
         # print self.exit.iconSize()
 
-        # Set Bakcground to be black
-        palette = QtGui.QPalette()
-        palette.setColor(QtGui.QPalette.Background, QtCore.Qt.black)
-        self.setPalette(palette)
+       
 
         # Set window to appear in the cebter of the screen
         qr = self.frameGeometry()
