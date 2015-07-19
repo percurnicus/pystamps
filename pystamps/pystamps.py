@@ -15,8 +15,8 @@ class DisplayImages(QtGui.QWidget):
     def __init__(self):
         super(DisplayImages, self).__init__()
         grid = QtGui.QGridLayout()
-        x = 0.0
-        y = 0.0
+        x = 0
+        y = 0
         self.X = 0
         self.Y = 0
         self.img_dict = {}
@@ -24,26 +24,43 @@ class DisplayImages(QtGui.QWidget):
         pdsimages = []
         # TODO Expand the types of extensions to search for
         extensions = ['img', 'IMG']
+
         for ext in extensions:
-            pdsimages = pdsimages + (glob('*%s' % (ext)))
+            pdsimages = list(set(pdsimages + (glob('*%s' % (ext)))))
+        # 965.98 = sqrt(ScreenL*Total Area*scale/ScreenW)
+        # 72 = ToolBarIconSize * 2
+        # 36 = ToolBarIconSize
+        # 241 = 965/4
+        self.setMinimumSize(965.98 + 72, 241 + 36)
         for file_name in pdsimages:
+            hbox = QtGui.QHBoxLayout()
             pdsimage = PDS3Image.open(file_name)
             image = gray2qimage(pdsimage.data, True)
             pixmap = QtGui.QPixmap.fromImage(image)
-            pixmap = pixmap.scaled(200, 200, QtCore.Qt.KeepAspectRatio)
+            pixmap = pixmap.scaled(241, 241, QtCore.Qt.KeepAspectRatio)
+            # scroll = QtGui.QScrollArea()
+            # scroll.setWidgetResizable(True)
+            # scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+            # scroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
             picture = QtGui.QLabel(self)
             picture.setPixmap(pixmap)
             picture.setStyleSheet("""QLabel {background-color: black;
                                   border: 3px solid rgb(240, 198, 0)}""")
-            picture.setScaledContents(True)
-            grid.addWidget(picture, x, y, QtCore.Qt.AlignCenter)
-            grid.setGeometry(QtCore.QRect(x, y, 200, 200))
+            # scroll.setWidget(picture)
+            hbox.addWidget(picture, QtCore.Qt.AlignCenter)
+            grid.addLayout(hbox, x, y, QtCore.Qt.AlignCenter)
+            grid.setColumnMinimumWidth(y, 241)
+            grid.setRowMinimumHeight(x, 241)
             self.posdict[(x, y)] = {'name': file_name, 'pict': picture,
                                     'select': False}
-            y += 1.0
-            if y == 4.0:
-                x += 1.0
-                y = 0.0
+            y += 1
+            if y == 4:
+                x += 1
+                y = 0
+
+        if y <= 4 and x == 0:
+            grid.setColumnMinimumWidth(y, 241)
+            grid.setColumnStretch(y, 1)
 
         self.setLayout(grid)
 
@@ -85,23 +102,26 @@ class Pystamps(QtGui.QMainWindow):
         self.print_image_path.addAction(printAction)
         self.selectAll = self.addToolBar('Select All/None')
         self.selectAll.addAction(allAction)
+        # print self.exit.iconSize()
 
-        # Create status bar
-        self.statusBar()
+        # Set Bakcground to be black
+        palette = QtGui.QPalette()
+        palette.setColor(QtGui.QPalette.Background, QtCore.Qt.black)
+        self.setPalette(palette)
 
-        self.setCentralWidget(self.disp)
+        # Set window to appear in the cebter of the screen
         qr = self.frameGeometry()
         cp = QtGui.QDesktopWidget().availableGeometry().center()
         qr.moveCenter(cp)
         self.move(qr.topLeft())
-        palette = QtGui.QPalette()
-        palette.setColor(QtGui.QPalette.Background, QtCore.Qt.black)
-        self.setPalette(palette)
-        self.setFixedSize(self.sizeHint())
+
+        #Display Window
         self.setWindowTitle('pdsimage')
+        self.setCentralWidget(self.disp)
         self.show()
 
     def mousePressEvent(self, QMousEvent):
+        # TODO Fix values so are based on screen size
         # TODO Fix so supports correct clicks when window resized.
         # TODO Make Images Actually Clickable.
         self.X = (QMousEvent.x() - (15+((QMousEvent.x()/200)*10)))/200
