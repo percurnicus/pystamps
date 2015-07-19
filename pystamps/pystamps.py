@@ -6,6 +6,7 @@ import os
 from planetaryimage import PDS3Image
 from qimage2ndarray import gray2qimage
 from glob import glob
+import math as m
 
 
 class DisplayImages(QtGui.QWidget):
@@ -24,42 +25,41 @@ class DisplayImages(QtGui.QWidget):
         pdsimages = []
         # TODO Expand the types of extensions to search for
         extensions = ['img', 'IMG']
-
         for ext in extensions:
             pdsimages = list(set(pdsimages + (glob('*%s' % (ext)))))
-        # 965.98 = sqrt(ScreenL*Total Area*scale/ScreenW)
-        # 72 = ToolBarIconSize * 2
-        # 36 = ToolBarIconSize
-        # 241 = 965/4
-        self.setMinimumSize(965.98 + 72, 241 + 36)
+        swidth =  QtGui.QDesktopWidget().availableGeometry().width(),
+        fwidth = m.sqrt(swidth[0]**2.*0.2)
+        TB =  QtGui.QToolBar(self).iconSize().width()
+        self.psize = fwidth/4.
+        self.setMinimumSize(fwidth + TB*2., self.psize + TB)
         for file_name in pdsimages:
-            hbox = QtGui.QHBoxLayout()
-            pdsimage = PDS3Image.open(file_name)
-            image = gray2qimage(pdsimage.data, True)
-            pixmap = QtGui.QPixmap.fromImage(image)
-            pixmap = pixmap.scaled(241, 241, QtCore.Qt.KeepAspectRatio)
-            # scroll = QtGui.QScrollArea()
-            # scroll.setWidgetResizable(True)
-            # scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-            # scroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-            picture = QtGui.QLabel(self)
-            picture.setPixmap(pixmap)
-            picture.setStyleSheet("""QLabel {background-color: black;
-                                  border: 3px solid rgb(240, 198, 0)}""")
-            # scroll.setWidget(picture)
-            hbox.addWidget(picture, QtCore.Qt.AlignCenter)
-            grid.addLayout(hbox, x, y, QtCore.Qt.AlignCenter)
-            grid.setColumnMinimumWidth(y, 241)
-            grid.setRowMinimumHeight(x, 241)
-            self.posdict[(x, y)] = {'name': file_name, 'pict': picture,
-                                    'select': False}
-            y += 1
-            if y == 4:
-                x += 1
-                y = 0
+            try:
+                hbox = QtGui.QHBoxLayout()
+                pdsimage = PDS3Image.open(file_name)
+                image = gray2qimage(pdsimage.data, True)
+                pixmap = QtGui.QPixmap.fromImage(image)
+                pixmap = pixmap.scaled(self.psize, self.psize,
+                                       QtCore.Qt.KeepAspectRatio)
+                picture = QtGui.QLabel(self)
+                picture.setPixmap(pixmap)
+                picture.setStyleSheet("""QLabel {background-color: black;
+                                      border: 3px solid rgb(240, 198, 0)}""")
+                hbox.addWidget(picture, QtCore.Qt.AlignCenter)
+                grid.addLayout(hbox, x, y, QtCore.Qt.AlignTop)
+                grid.setColumnMinimumWidth(y, self.psize)
+                grid.setRowMinimumHeight(x, self.psize)
+                self.posdict[(x, y)] = {'name': file_name, 'pict': picture,
+                                        'select': False}
+                y += 1
+                if y == 4:
+                    x += 1
+                    y = 0
+            except:
+                pass
 
+        # Fill in the rest of the area if there are less than four pictures
         if y <= 4 and x == 0:
-            grid.setColumnMinimumWidth(y, 241)
+            grid.setColumnMinimumWidth(y, self.psize)
             grid.setColumnStretch(y, 1)
 
         self.setLayout(grid)
@@ -100,7 +100,6 @@ class Pystamps(QtGui.QMainWindow):
         allAction = QtGui.QAction('&Select All/None', self)
         allAction.triggered.connect(self.select_all)
 
-
         # Assign actions to the tool bar object
         self.exit = self.addToolBar('Exit')
         self.exit.addAction(exitAction)
@@ -111,9 +110,6 @@ class Pystamps(QtGui.QMainWindow):
         self.selectAll = self.addToolBar('Select All/None')
         self.selectAll.addAction(allAction)
         self.selectAll.setStyleSheet("QToolBar {background-color: gray}")
-        # print self.exit.iconSize()
-
-       
 
         # Set window to appear in the cebter of the screen
         qr = self.frameGeometry()
@@ -122,17 +118,18 @@ class Pystamps(QtGui.QMainWindow):
         self.move(qr.topLeft())
 
         #Display Window
-        self.setWindowTitle('pdsimage')
+        self.setWindowTitle('Pystamps')
         self.setCentralWidget(self.disp)
         self.show()
 
     def mousePressEvent(self, QMousEvent):
-        # TODO Fix values so are based on screen size
-        # TODO Fix so supports correct clicks when window resized.
-        # TODO Make Images Actually Clickable.
-        self.X = (QMousEvent.x() - (15+((QMousEvent.x()/200)*10)))/200
-        self.Y = (QMousEvent.y() - (15+((QMousEvent.x()/200)*10)))/200
-        self.disp.select_image(self.Y, self.X)
+        psize = int(self.disp.psize)
+        self.X = (QMousEvent.x() - (15+((QMousEvent.x()/psize)*10)))/psize
+        self.Y = (QMousEvent.y() - (15+((QMousEvent.x()/psize)*10)))/psize
+        try:
+            self.disp.select_image(self.Y, self.X)
+        except:
+            pass
 
     def print_file(self):
         for item in self.disp.posdict:
@@ -152,6 +149,8 @@ class Pystamps(QtGui.QMainWindow):
                 self.disp.posdict[item]['select'] = True
                 self.disp.select_image(item[0], item[1])
         self.all_count += 1
+
+    # TODO make window resizable and wrap images
 
 
 def main():
