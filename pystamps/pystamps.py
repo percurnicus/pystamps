@@ -16,8 +16,6 @@ class DisplayImages(QtGui.QWidget):
     def __init__(self):
         super(DisplayImages, self).__init__()
         self.grid = QtGui.QGridLayout()
-        grid = self.grid
-        self.setAutoFillBackground(True)
         x = 0
         y = 0
         self.X = 0
@@ -39,8 +37,6 @@ class DisplayImages(QtGui.QWidget):
         self.frame_width = math.sqrt(self.screen_width ** 2. * 0.1)
         self.tool_bar_w = QtGui.QToolBar(self).iconSize().width()
         self.psize = self.frame_width / 4.
-        self.setMinimumSize(self.frame_width + self.tool_bar_w * 2.,
-                            self.psize + self.tool_bar_w)
         for file_name in self.file_names:
             try:
                 hbox = QtGui.QHBoxLayout()
@@ -54,9 +50,7 @@ class DisplayImages(QtGui.QWidget):
                 picture.setStyleSheet("""QLabel {background-color: black;
                                       border: 3px solid rgb(240, 198, 0)}""")
                 hbox.addWidget(picture, QtCore.Qt.AlignCenter)
-                grid.addLayout(hbox, x, y, QtCore.Qt.AlignTop)
-                grid.setColumnMinimumWidth(y, self.psize)
-                grid.setRowMinimumHeight(x, self.psize)
+                self.grid.addLayout(hbox, x, y, QtCore.Qt.AlignTop)
                 self.posdict[(x, y)] = {'name': file_name, 'pict': picture,
                                         'select': False}
                 y += 1
@@ -68,10 +62,11 @@ class DisplayImages(QtGui.QWidget):
 
         # Fill in the rest of the area if there are less than four pictures
         if y <= 4 and x == 0:
-            grid.setColumnMinimumWidth(y, self.psize)
-            grid.setColumnStretch(y, 1)
+            self.grid.setColumnMinimumWidth(y, self.psize)
+            self.grid.setColumnStretch(y, 1)
 
-        self.setLayout(grid)
+        self.setLayout(self.grid)
+        self.grid(QtCore.Qt.AlignCenter)
 
     def select_image(self, posy, posx):
         """Updates the border indicating selected/not selected"""
