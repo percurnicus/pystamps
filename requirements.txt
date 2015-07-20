@@ -1,1 +1,9 @@
+#Install the package itself
+
+-e .
+
+#Necessary Packages
 wheel==0.23.0
+planetaryimage==0.2.0
+qimage2ndarray==1.5
+PySide==1.2.2
