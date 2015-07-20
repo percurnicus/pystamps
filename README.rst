@@ -17,4 +17,15 @@ pystamps is the python equivalnlent of mer_stamps in idl
 Features
 --------
 
-* TODO
+* This is a still a work in progress
+* Current available features:
+
+    * Display Images
+    * Select Images
+    * Print Image paths
+
+* Upcoming features
+
+    * Pyview
+    * Resize and wrap layout
+
