@@ -15,7 +15,8 @@ class DisplayImages(QtGui.QWidget):
 
     def __init__(self):
         super(DisplayImages, self).__init__()
-        grid = QtGui.QGridLayout()
+        self.grid = QtGui.QGridLayout()
+        grid = self.grid
         x = 0
         y = 0
         self.X = 0
@@ -27,9 +28,9 @@ class DisplayImages(QtGui.QWidget):
         extensions = ['img', 'IMG']
         for ext in extensions:
             pdsimages = list(set(pdsimages + (glob('*%s' % (ext)))))
-        swidth =  QtGui.QDesktopWidget().availableGeometry().width(),
-        fwidth = m.sqrt(swidth[0]**2.*0.2)
-        TB =  QtGui.QToolBar(self).iconSize().width()
+        swidth = QtGui.QDesktopWidget().availableGeometry().width()
+        fwidth = m.sqrt(swidth**2.*0.1)
+        TB = QtGui.QToolBar(self).iconSize().width()
         self.psize = fwidth/4.
         self.setMinimumSize(fwidth + TB*2., self.psize + TB)
         for file_name in pdsimages:
@@ -87,10 +88,25 @@ class Pystamps(QtGui.QMainWindow):
         self.all_count = 0
 
     def pystamps(self):
-         # Set Bakcground to be black
+        # Create Scroll Bar
+        scrollArea = QtGui.QScrollArea()
+        scrollArea.setWidget(self.disp)
+        swidth = QtGui.QDesktopWidget().availableGeometry().width()
+        fwidth = m.sqrt(swidth**2.*0.1)
+        TB = QtGui.QToolBar(self).iconSize().width()
+        psize = fwidth/4.
+        if self.disp.grid.rowCount() <= 3:
+            scrollArea.setMinimumSize(fwidth + TB*2.+30,
+                                      (psize + TB)*self.disp.grid.rowCount())
+        else:
+            scrollArea.setMinimumSize(fwidth + TB*2.+30, (psize + TB)*3)
+        scrollArea.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+
+        # Set Bakcground to be black
         palette = QtGui.QPalette()
         palette.setColor(QtGui.QPalette.Background, QtCore.Qt.black)
         self.setPalette(palette)
+        scrollArea.setPalette(palette)
 
         # Create Actions for tool bar
         exitAction = QtGui.QAction('&Exit', self)
@@ -106,7 +122,8 @@ class Pystamps(QtGui.QMainWindow):
         self.exit.setStyleSheet("QToolBar {background-color: gray}")
         self.print_image_path = self.addToolBar('Print Selected Filenames')
         self.print_image_path.addAction(printAction)
-        self.print_image_path.setStyleSheet("QToolBar {background-color: gray}")
+        self.print_image_path.setStyleSheet("""QToolBar
+                                            {background-color: gray}""")
         self.selectAll = self.addToolBar('Select All/None')
         self.selectAll.addAction(allAction)
         self.selectAll.setStyleSheet("QToolBar {background-color: gray}")
@@ -117,9 +134,10 @@ class Pystamps(QtGui.QMainWindow):
         qr.moveCenter(cp)
         self.move(qr.topLeft())
 
-        #Display Window
+        # Display Window
+        self.resize(fwidth + TB*2.+30, (psize + TB)*3)
         self.setWindowTitle('Pystamps')
-        self.setCentralWidget(self.disp)
+        self.setCentralWidget(scrollArea)
         self.show()
 
     def mousePressEvent(self, QMousEvent):
@@ -158,7 +176,5 @@ def main():
     app = QtGui.QApplication(sys.argv)
     ex = Pystamps()
     sys.exit(app.exec_())
-
-
 if __name__ == '__main__':
     main()
