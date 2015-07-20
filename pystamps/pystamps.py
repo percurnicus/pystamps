@@ -6,7 +6,7 @@ import os
 from planetaryimage import PDS3Image
 from qimage2ndarray import gray2qimage
 from glob import glob
-import math as m
+import math
 
 
 class DisplayImages(QtGui.QWidget):
@@ -17,23 +17,31 @@ class DisplayImages(QtGui.QWidget):
         super(DisplayImages, self).__init__()
         self.grid = QtGui.QGridLayout()
         grid = self.grid
+        self.setAutoFillBackground(True)
         x = 0
         y = 0
         self.X = 0
         self.Y = 0
         self.img_dict = {}
         self.posdict = {}
-        pdsimages = []
+        self.pdsimages = []
         # TODO Expand the types of extensions to search for
         extensions = ['img', 'IMG']
         for ext in extensions:
-            pdsimages = list(set(pdsimages + (glob('*%s' % (ext)))))
-        swidth = QtGui.QDesktopWidget().availableGeometry().width()
-        fwidth = m.sqrt(swidth**2.*0.1)
-        TB = QtGui.QToolBar(self).iconSize().width()
-        self.psize = fwidth/4.
-        self.setMinimumSize(fwidth + TB*2., self.psize + TB)
-        for file_name in pdsimages:
+            self.pdsimages = self.pdsimages + (glob('*%s' % (ext)))
+        seen = {}
+        self.file_names = []
+        for image in self.pdsimages:
+            if image not in seen:
+                seen[image] = 1
+                self.file_names.append(image)
+        self.screen_width = QtGui.QDesktopWidget().availableGeometry().width()
+        self.frame_width = math.sqrt(self.screen_width ** 2. * 0.1)
+        self.tool_bar_w = QtGui.QToolBar(self).iconSize().width()
+        self.psize = self.frame_width / 4.
+        self.setMinimumSize(self.frame_width + self.tool_bar_w * 2.,
+                            self.psize + self.tool_bar_w)
+        for file_name in self.file_names:
             try:
                 hbox = QtGui.QHBoxLayout()
                 pdsimage = PDS3Image.open(file_name)
@@ -71,12 +79,10 @@ class DisplayImages(QtGui.QWidget):
             pict = self.posdict[(posy, posx)]['pict']
             pict.setStyleSheet("QLabel {border: 3px solid rgb(240, 198, 0)}")
             self.posdict[(posy, posx)]['select'] = False
-            return self.posdict
         else:
             pict = self.posdict[(posy, posx)]['pict']
             pict.setStyleSheet("QLabel {border: 3px solid rgb(255,255,255)}")
             self.posdict[(posy, posx)]['select'] = True
-            return self.posdict
 
 
 class Pystamps(QtGui.QMainWindow):
@@ -91,22 +97,23 @@ class Pystamps(QtGui.QMainWindow):
         # Create Scroll Bar
         scrollArea = QtGui.QScrollArea()
         scrollArea.setWidget(self.disp)
-        swidth = QtGui.QDesktopWidget().availableGeometry().width()
-        fwidth = m.sqrt(swidth**2.*0.1)
-        TB = QtGui.QToolBar(self).iconSize().width()
-        psize = fwidth/4.
-        if self.disp.grid.rowCount() <= 3:
-            scrollArea.setMinimumSize(fwidth + TB*2.+30,
-                                      (psize + TB)*self.disp.grid.rowCount())
+        fwidth = self.disp.frame_width
+        psize = self.disp.psize
+        rows = self.disp.grid.rowCount()
+        tool_bar_w = self.disp.tool_bar_w
+        min_frame_size = (fwidth + tool_bar_w * 2. + 30,
+                          (psize + tool_bar_w) * 3)
+        if rows <= 3:
+            scrollArea.setMinimumSize(fwidth + tool_bar_w * 2. + 30,
+                                      (psize + tool_bar_w) * rows)
         else:
-            scrollArea.setMinimumSize(fwidth + TB*2.+30, (psize + TB)*3)
+            scrollArea.setMinimumSize(min_frame_size[0], min_frame_size[1])
         scrollArea.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
 
         # Set Bakcground to be black
         palette = QtGui.QPalette()
         palette.setColor(QtGui.QPalette.Background, QtCore.Qt.black)
         self.setPalette(palette)
-        scrollArea.setPalette(palette)
 
         # Create Actions for tool bar
         exitAction = QtGui.QAction('&Exit', self)
@@ -135,7 +142,7 @@ class Pystamps(QtGui.QMainWindow):
         self.move(qr.topLeft())
 
         # Display Window
-        self.resize(fwidth + TB*2.+30, (psize + TB)*3)
+        self.resize(min_frame_size[0], min_frame_size[1])
         self.setWindowTitle('Pystamps')
         self.setCentralWidget(scrollArea)
         self.show()
