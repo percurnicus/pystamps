@@ -9,13 +9,43 @@ from glob import glob
 import math
 
 
-class DisplayImages(QtGui.QWidget):
+# class ImageStamp(object):
+#     def __init__(filename):
+#         self.file_name = filename
+#         self.pdsimage = PDS3Image.open(filename)
+#         self.pixmap = ...
+#         self.selected = False
+
+#     def __repr__():
+#         return self.file_name
+
+
+# class ImageSet(object):
+#     def __init__(inlist):
+#         self.images = []
+#         for image in inlist:
+#             self.images.append(ImageStamp(image))
+
+#     def selected():
+#         selected_images = []
+#         for image in self.images:
+#             if image.selected:
+#                 selected_images.append(image)
+#         return selected_images
+
+
+class DisplayImages(QtGui.QGraphicsView):
     """Displays images in the main widget window with a border marking them as
     selected (white) or unselected (yellow)"""
 
     def __init__(self):
         super(DisplayImages, self).__init__()
-        self.grid = QtGui.QGridLayout()
+        self.scene = QtGui.QGraphicsScene()
+        self.grid = QtGui.QGraphicsGridLayout()
+        self.yellow_pen = QtGui.QPen(QtCore.Qt.yellow)
+        self.white_pen = QtGui.QPen(QtCore.Qt.white)
+        self.yellow_pen.setWidth(10)
+        self.white_pen.setWidth(10)
         x = 0
         y = 0
         self.X = 0
@@ -39,34 +69,46 @@ class DisplayImages(QtGui.QWidget):
         self.psize = self.frame_width / 4.
         for file_name in self.file_names:
             try:
-                hbox = QtGui.QHBoxLayout()
                 pdsimage = PDS3Image.open(file_name)
                 image = gray2qimage(pdsimage.data, True)
-                pixmap = QtGui.QPixmap.fromImage(image)
-                pixmap = pixmap.scaled(self.psize, self.psize,
-                                       QtCore.Qt.KeepAspectRatio)
-                picture = QtGui.QLabel(self)
-                picture.setPixmap(pixmap)
-                picture.setStyleSheet("""QLabel {background-color: black;
-                                      border: 3px solid rgb(240, 198, 0)}""")
-                hbox.addWidget(picture, QtCore.Qt.AlignCenter)
-                self.grid.addLayout(hbox, x, y, QtCore.Qt.AlignTop)
-                self.posdict[(x, y)] = {'name': file_name, 'pict': picture,
-                                        'select': False}
+                self.pixmap = QtGui.QPixmap.fromImage(image)
+                self.pixmap = self.pixmap.scaled(self.psize, self.psize,
+                                                 QtCore.Qt.KeepAspectRatio)
+                self.Gpic = QtGui.QLabel()
+                self.Gpic.setPixmap(self.pixmap)
+                self.Gpic.setStyleSheet("""QLabel {background-color: black;
+                                        border: 4px solid rgb(240, 198, 0)}""")
+                self.picture = QtGui.QGraphicsProxyWidget()
+                self.picture.setWidget(self.Gpic)
+                self.picture.setFlag(QtGui.QGraphicsItem.ItemIsSelectable)
+                self.picture.setMaximumSize(self.psize, self.psize)
+                self.picture.setMinimumSize(self.psize, self.psize)
+                self.grid.setColumnFixedWidth(0, self.psize)
+                self.grid.setRowFixedHeight(0, self.psize)
+                self.grid.addItem(self.picture, x, y, QtCore.Qt.AlignCenter)
+                self.posdict[(x, y)] = {'name': file_name,
+                                        'pict': self.Gpic, 'select': False}
                 y += 1
                 if y == 4:
                     x += 1
                     y = 0
             except:
                 pass
+        form = QtGui.QGraphicsWidget()
+        form.setLayout(self.grid)
+        self.scene.addItem(form)
+        self.view = QtGui.QGraphicsView(self.scene, self)
+        self.view.setSceneRect(0, 0,
+                               self.frame_width + self.tool_bar_w * 2. + 30,
+                               (self.psize + self.tool_bar_w) * 3)
+        self.view.setBackgroundBrush(QtCore.Qt.black)
+        self.scene.setBackgroundBrush(QtCore.Qt.black)
 
         # Fill in the rest of the area if there are less than four pictures
-        if y <= 4 and x == 0:
-            self.grid.setColumnMinimumWidth(y, self.psize)
-            self.grid.setColumnStretch(y, 1)
+        # if y <= 4 and x == 0:
+        #     self.grid.setColumnMinimumWidth(y, self.psize)
+        #     self.grid.setColumnStretch(y, 1)
 
-        self.setLayout(self.grid)
-        self.grid(QtCore.Qt.AlignCenter)
 
     def select_image(self, posy, posx):
         """Updates the border indicating selected/not selected"""
@@ -90,25 +132,16 @@ class Pystamps(QtGui.QMainWindow):
 
     def pystamps(self):
         # Create Scroll Bar
-        scrollArea = QtGui.QScrollArea()
-        scrollArea.setWidget(self.disp)
+        #scrollArea = QtGui.QScrollArea()
+        #scrollArea.setWidget(self.disp)
         fwidth = self.disp.frame_width
         psize = self.disp.psize
         rows = self.disp.grid.rowCount()
         tool_bar_w = self.disp.tool_bar_w
         min_frame_size = (fwidth + tool_bar_w * 2. + 30,
                           (psize + tool_bar_w) * 3)
-        if rows <= 3:
-            scrollArea.setMinimumSize(fwidth + tool_bar_w * 2. + 30,
-                                      (psize + tool_bar_w) * rows)
-        else:
-            scrollArea.setMinimumSize(min_frame_size[0], min_frame_size[1])
-        scrollArea.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
 
-        # Set Bakcground to be black
-        palette = QtGui.QPalette()
-        palette.setColor(QtGui.QPalette.Background, QtCore.Qt.black)
-        self.setPalette(palette)
+        
 
         # Create Actions for tool bar
         exitAction = QtGui.QAction('&Exit', self)
@@ -139,8 +172,13 @@ class Pystamps(QtGui.QMainWindow):
         # Display Window
         self.resize(min_frame_size[0], min_frame_size[1])
         self.setWindowTitle('Pystamps')
-        self.setCentralWidget(scrollArea)
+        self.setCentralWidget(self.disp)
         self.show()
+
+        # Set Bakcground to be black
+        palette = QtGui.QPalette()
+        palette.setColor(QtGui.QPalette.Background, QtCore.Qt.black)
+        self.setPalette(palette)
 
     def mousePressEvent(self, QMousEvent):
         psize = int(self.disp.psize)
@@ -150,6 +188,9 @@ class Pystamps(QtGui.QMainWindow):
             self.disp.select_image(self.Y, self.X)
         except:
             pass
+
+    def QGraphicsSceneMouseEvent(self):
+        print "Mouse Lcikc"
 
     def print_file(self):
         for item in self.disp.posdict:
