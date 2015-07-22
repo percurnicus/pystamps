@@ -97,28 +97,21 @@ class DisplayImages(QtGui.QGraphicsView):
         form = QtGui.QGraphicsWidget()
         form.setLayout(self.grid)
         self.scene.addItem(form)
-        self.view = QtGui.QGraphicsView(self.scene, self)
-        self.view.setSceneRect(0, 0,
-                               self.frame_width + self.tool_bar_w * 2. + 30,
-                               (self.psize + self.tool_bar_w) * 3)
-        self.view.setBackgroundBrush(QtCore.Qt.black)
-        self.scene.setBackgroundBrush(QtCore.Qt.black)
-
-        # Fill in the rest of the area if there are less than four pictures
-        # if y <= 4 and x == 0:
-        #     self.grid.setColumnMinimumWidth(y, self.psize)
-        #     self.grid.setColumnStretch(y, 1)
-
+        self.setScene(self.scene)
+        self.setBackgroundBrush(QtCore.Qt.black)
+        self.setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignLeft)
 
     def select_image(self, posy, posx):
         """Updates the border indicating selected/not selected"""
         if self.posdict[(posy, posx)]['select']:
             pict = self.posdict[(posy, posx)]['pict']
-            pict.setStyleSheet("QLabel {border: 3px solid rgb(240, 198, 0)}")
+            pict.setStyleSheet("""QLabel {background-color: black;
+                               border: 4px solid rgb(240, 198, 0)}""")
             self.posdict[(posy, posx)]['select'] = False
         else:
             pict = self.posdict[(posy, posx)]['pict']
-            pict.setStyleSheet("QLabel {border: 3px solid rgb(255,255,255)}")
+            pict.setStyleSheet("""QLabel {background-color: black;
+                               border: 4px solid rgb(255, 255, 255)}""")
             self.posdict[(posy, posx)]['select'] = True
 
 
@@ -131,17 +124,11 @@ class Pystamps(QtGui.QMainWindow):
         self.all_count = 0
 
     def pystamps(self):
-        # Create Scroll Bar
-        #scrollArea = QtGui.QScrollArea()
-        #scrollArea.setWidget(self.disp)
         fwidth = self.disp.frame_width
         psize = self.disp.psize
-        rows = self.disp.grid.rowCount()
         tool_bar_w = self.disp.tool_bar_w
         min_frame_size = (fwidth + tool_bar_w * 2. + 30,
                           (psize + tool_bar_w) * 3)
-
-        
 
         # Create Actions for tool bar
         exitAction = QtGui.QAction('&Exit', self)
