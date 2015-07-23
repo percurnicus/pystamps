@@ -9,29 +9,71 @@ from glob import glob
 import math
 
 
-# class ImageStamp(object):
-#     def __init__(filename):
-#         self.file_name = filename
-#         self.pdsimage = PDS3Image.open(filename)
-#         self.pixmap = ...
-#         self.selected = False
-
-#     def __repr__():
-#         return self.file_name
+class Dimensions(object):
+    def __init__(self):
+        self.screen_width = QtGui.QDesktopWidget().availableGeometry().width()
+        self.frame_width = math.sqrt(self.screen_width ** 2. * 0.1)
+        self.tool_bar_w = QtGui.QToolBar().iconSize().width()
+        self.psize = self.frame_width / 4.
 
 
-# class ImageSet(object):
-#     def __init__(inlist):
-#         self.images = []
-#         for image in inlist:
-#             self.images.append(ImageStamp(image))
+class ImageStamp(object):
+    def __init__(self, filename, x, y):
+        dim = Dimensions()
+        self.file_name = filename
+        self.x = x
+        self.y = y
+        try:
+            pdsimage = PDS3Image.open(filename)
+            qimage = gray2qimage(pdsimage.data, True)
+            self.position = (x, y)
+            self.selected = False
+            pixmap = QtGui.QPixmap.fromImage(qimage)
+            self.pixmap = pixmap.scaled(dim.psize, dim.psize,
+                                        QtCore.Qt.KeepAspectRatio)
+            self.lbl = QtGui.QLabel()
+            self.lbl.setPixmap(self.pixmap)
+            self.lbl.setStyleSheet("""QLabel {background-color: black;
+                                    border: 4px solid rgb(240, 198, 0)}""")
+            y += 1
+            if y == 4:
+                x += 1
+                y = 0
+        except:
+            pass
 
-#     def selected():
-#         selected_images = []
-#         for image in self.images:
-#             if image.selected:
-#                 selected_images.append(image)
-#         return selected_images
+    def __repr__(self):
+        return self.file_name
+
+
+class ImageSet(object):
+    def __init__(self):
+        x = 0
+        y = 0
+        names = []
+        extensions = ['img', 'IMG']
+        for ext in extensions:
+            names = names + (glob('*%s' % (ext)))
+        seen = {}
+        inlist = []
+        for name in names:
+            if name not in seen:
+                seen[name] = 1
+                inlist.append(name)
+        self.images = []
+        for image in inlist:
+            self.images.append(ImageStamp(image, x, y))
+            y += 1
+            if y == 4:
+                x += 1
+                y = 0
+
+    def selected(self):
+        selected_images = []
+        for image in self.images:
+            if image.selected:
+                selected_images.append(image)
+        return selected_images
 
 
 class DisplayImages(QtGui.QGraphicsView):
@@ -40,60 +82,29 @@ class DisplayImages(QtGui.QGraphicsView):
 
     def __init__(self):
         super(DisplayImages, self).__init__()
+        # Initialize Objects
+        self.image_set = ImageSet()
+        dim = Dimensions()
+
+        # Set Scene and Layout
         self.scene = QtGui.QGraphicsScene()
         self.grid = QtGui.QGraphicsGridLayout()
-        self.yellow_pen = QtGui.QPen(QtCore.Qt.yellow)
-        self.white_pen = QtGui.QPen(QtCore.Qt.white)
-        self.yellow_pen.setWidth(10)
-        self.white_pen.setWidth(10)
-        x = 0
-        y = 0
-        self.X = 0
-        self.Y = 0
-        self.img_dict = {}
-        self.posdict = {}
-        self.pdsimages = []
-        # TODO Expand the types of extensions to search for
-        extensions = ['img', 'IMG']
-        for ext in extensions:
-            self.pdsimages = self.pdsimages + (glob('*%s' % (ext)))
-        seen = {}
-        self.file_names = []
-        for image in self.pdsimages:
-            if image not in seen:
-                seen[image] = 1
-                self.file_names.append(image)
-        self.screen_width = QtGui.QDesktopWidget().availableGeometry().width()
-        self.frame_width = math.sqrt(self.screen_width ** 2. * 0.1)
-        self.tool_bar_w = QtGui.QToolBar(self).iconSize().width()
-        self.psize = self.frame_width / 4.
-        for file_name in self.file_names:
+
+        # Set Images in Grid
+        for image in self.image_set.images:
             try:
-                pdsimage = PDS3Image.open(file_name)
-                image = gray2qimage(pdsimage.data, True)
-                self.pixmap = QtGui.QPixmap.fromImage(image)
-                self.pixmap = self.pixmap.scaled(self.psize, self.psize,
-                                                 QtCore.Qt.KeepAspectRatio)
-                self.Gpic = QtGui.QLabel()
-                self.Gpic.setPixmap(self.pixmap)
-                self.Gpic.setStyleSheet("""QLabel {background-color: black;
-                                        border: 4px solid rgb(240, 198, 0)}""")
                 self.picture = QtGui.QGraphicsProxyWidget()
-                self.picture.setWidget(self.Gpic)
+                self.picture.setWidget(image.lbl)
                 self.picture.setFlag(QtGui.QGraphicsItem.ItemIsSelectable)
-                self.picture.setMaximumSize(self.psize, self.psize)
-                self.picture.setMinimumSize(self.psize, self.psize)
-                self.grid.setColumnFixedWidth(0, self.psize)
-                self.grid.setRowFixedHeight(0, self.psize)
-                self.grid.addItem(self.picture, x, y, QtCore.Qt.AlignCenter)
-                self.posdict[(x, y)] = {'name': file_name,
-                                        'pict': self.Gpic, 'select': False}
-                y += 1
-                if y == 4:
-                    x += 1
-                    y = 0
+                self.picture.setMaximumSize(dim.psize, dim.psize)
+                self.picture.setMinimumSize(dim.psize, dim.psize)
+                self.grid.setColumnFixedWidth(0, dim.psize)
+                self.grid.setRowFixedHeight(0, dim.psize)
+                self.grid.addItem(self.picture, image.x, image.y,
+                                  QtCore.Qt.AlignCenter)
             except:
                 pass
+
         form = QtGui.QGraphicsWidget()
         form.setLayout(self.grid)
         self.scene.addItem(form)
@@ -101,32 +112,35 @@ class DisplayImages(QtGui.QGraphicsView):
         self.setBackgroundBrush(QtCore.Qt.black)
         self.setAlignment(QtCore.Qt.AlignTop | QtCore.Qt.AlignLeft)
 
-    def select_image(self, posy, posx):
+    def select_image(self, pos):
         """Updates the border indicating selected/not selected"""
-        if self.posdict[(posy, posx)]['select']:
-            pict = self.posdict[(posy, posx)]['pict']
-            pict.setStyleSheet("""QLabel {background-color: black;
-                               border: 4px solid rgb(240, 198, 0)}""")
-            self.posdict[(posy, posx)]['select'] = False
-        else:
-            pict = self.posdict[(posy, posx)]['pict']
-            pict.setStyleSheet("""QLabel {background-color: black;
-                               border: 4px solid rgb(255, 255, 255)}""")
-            self.posdict[(posy, posx)]['select'] = True
+        for image in self.image_set.images:
+            if image.position == pos and image.selected:
+                pict = image.lbl
+                pict.setStyleSheet("""QLabel {background-color: black;
+                                   border: 4px solid rgb(240, 198, 0)}""")
+                image.selected = False
+            elif image.position == pos and not(image.selected):
+                pict = image.lbl
+                pict.setStyleSheet("""QLabel {background-color: black;
+                                   border: 4px solid rgb(255, 255, 255)}""")
+                image.selected = True
 
 
 class Pystamps(QtGui.QMainWindow):
     """Holds the tool bars and actions. Makes images clickable."""
     def __init__(self):
         super(Pystamps, self).__init__()
+        self.image_set = ImageSet()
         self.disp = DisplayImages()
+        self.dim = Dimensions()
         self.pystamps()
         self.all_count = 0
 
     def pystamps(self):
-        fwidth = self.disp.frame_width
-        psize = self.disp.psize
-        tool_bar_w = self.disp.tool_bar_w
+        fwidth = self.dim.frame_width
+        psize = self.dim.psize
+        tool_bar_w = self.dim.tool_bar_w
         min_frame_size = (fwidth + tool_bar_w * 2. + 30,
                           (psize + tool_bar_w) * 3)
 
@@ -168,43 +182,42 @@ class Pystamps(QtGui.QMainWindow):
         self.setPalette(palette)
 
     def mousePressEvent(self, QMousEvent):
-        psize = int(self.disp.psize)
+        psize = int(self.dim.psize)
         self.X = (QMousEvent.x() - (15+((QMousEvent.x()/psize)*10)))/psize
         self.Y = (QMousEvent.y() - (15+((QMousEvent.x()/psize)*10)))/psize
         try:
-            self.disp.select_image(self.Y, self.X)
+            self.disp.select_image((self.Y, self.X))
         except:
             pass
 
-    def QGraphicsSceneMouseEvent(self):
-        print "Mouse Lcikc"
-
     def print_file(self):
-        for item in self.disp.posdict:
-            if self.disp.posdict[item]['select']:
-                print os.path.abspath(self.disp.posdict[item]['name'])
+        space = False
+        for image in self.disp.image_set.images:
+            if image.selected:
+                print image.file_name
+                space = True
             else:
                 pass
-        print ""
+        if space:
+            print ""
 
     def select_all(self):
         if self.all_count % 2 == 0:
-            for item in self.disp.posdict:
-                self.disp.posdict[item]['select'] = False
-                self.disp.select_image(item[0], item[1])
+            for item in self.disp.image_set.images:
+                item.selected = False
+                self.disp.select_image(item.position)
         else:
-            for item in self.disp.posdict:
-                self.disp.posdict[item]['select'] = True
-                self.disp.select_image(item[0], item[1])
+            for item in self.disp.image_set.images:
+                item.selected = True
+                self.disp.select_image(item.position)
         self.all_count += 1
 
     # TODO make window resizable and wrap images
 
 
 def main():
-
     app = QtGui.QApplication(sys.argv)
-    ex = Pystamps()
+    stamps = Pystamps()
     sys.exit(app.exec_())
 if __name__ == '__main__':
     main()
