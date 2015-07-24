@@ -160,6 +160,7 @@ class ImageSetView(QtGui.QGraphicsView):
             image.container.move(0, image.title.height())
             image.title.setAlignment(QtCore.Qt.AlignCenter)
             self.grid.setMinimumWidth(PSIZE)
+            self.grid.setMaximumWidth(PSIZE)
 
         # Set grid in view and MainWindow
         layout_container = QtGui.QGraphicsWidget()
