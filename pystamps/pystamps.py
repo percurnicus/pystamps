@@ -48,24 +48,28 @@ class ImageStamp(object):
     def __repr__(self):
         return self.file_name
 
+
 class ImageSet(object):
     """Create set of images to be displayed"""
-    def __init__(self, path):
+    def __init__(self, path='*'):
         row = 0
         column = 0
-        names = glob('%s' % (path))
+        if '*' in path:
+            self.names = glob('%s' % (path))
+        else:
+            self.names = glob(os.path.join('%s' % (path), '*'))
 
         # Remove any duplicates
         seen = {}
-        inlist = []
-        for name in names:
+        self.inlist = []
+        for name in self.names:
             if name not in seen:
                 seen[name] = 1
-                inlist.append(name)
+                self.inlist.append(name)
 
         # Create image objects with attributes set in ImageStamp
         self.images = []
-        for image in inlist:
+        for image in self.inlist:
             image_stamp = ImageStamp(image, row, column)
             if image_stamp.pds_compatible:
                 self.images.append(image_stamp)
@@ -86,7 +90,7 @@ class ImageSetView(QtGui.QGraphicsView):
     """Displays images in the main widget window with a border marking them as
     selected (white) or unselected (yellow)"""
 
-    def __init__(self, path):
+    def __init__(self, path='*'):
         super(ImageSetView, self).__init__()
         # Initialize Objects
         self.image_set = ImageSet(path)
@@ -182,7 +186,7 @@ class ImageSetView(QtGui.QGraphicsView):
 
 class MainWindow(QtGui.QMainWindow):
     """Holds the tool bars and actions. Makes images clickable."""
-    def __init__(self, path):
+    def __init__(self, path='*'):
         super(MainWindow, self).__init__()
         self.columns = 4
         self.view = ImageSetView(path)
@@ -207,12 +211,15 @@ class MainWindow(QtGui.QMainWindow):
         self.exit = self.addToolBar('Exit')
         self.exit.addAction(exitAction)
         self.exit.setStyleSheet(TOOLBAR)
+        self.exit.setParent(self)
         self.print_image_path = self.addToolBar('Print Selected Filenames')
         self.print_image_path.addAction(printAction)
         self.print_image_path.setStyleSheet(TOOLBAR)
+        self.print_image_path.setParent(self)
         self.selectAll = self.addToolBar('Select All/None')
         self.selectAll.addAction(allAction)
         self.selectAll.setStyleSheet(TOOLBAR)
+        self.selectAll.setParent(self)
 
         # Set window to appear in the cebter of the screen
         qr = self.frameGeometry()
