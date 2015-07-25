@@ -159,7 +159,6 @@ class ImageSetView(QtGui.QGraphicsView):
                 image.picture, image.row, image.column)
             image.container.move(0, image.title.height())
             image.title.setAlignment(QtCore.Qt.AlignCenter)
-            self.grid.setMinimumWidth(PSIZE)
             self.grid.setMaximumWidth(PSIZE)
 
         # Set grid in view and MainWindow
@@ -230,7 +229,6 @@ class MainWindow(QtGui.QMainWindow):
 
         # Display Window
         self.resize(min_frame_size[0], min_frame_size[1])
-        self.setMinimumWidth(min_frame_size[0])
         self.setWindowTitle('Pystamps')
         self.setCentralWidget(self.view)
         self.show()
@@ -270,55 +268,41 @@ class MainWindow(QtGui.QMainWindow):
         images = self.image_set.images
         FRAME_WIDTH = self.width()
         column = int(FRAME_WIDTH/PSIZE)
-
-        # When frame size increased, wrap to next available column
-        if int(column) > self.columns:
-            self.columns = int(column)
-            for n in range(self.columns-1, len(images)):
-                image = images[n]
-                if image.row > 0 and images[n].column == 0:
-                    image.row = image.row - 1
-                    image.column = n
-                    image.position = (image.row, image.column)
-                    image.button.setText(str(image.position))
-                    image.mapper.setMapping(image.button, str(image.position))
-                    image.picture.setWidget(image.button)
-                    self.view.grid.addItem(
-                        image.picture, image.row, image.column
-                                            )
-                else:
-                    image.column = image.column - 1
-                    image.position = (image.row, image.column)
-                    image.button.setText(str(image.position))
-                    image.mapper.setMapping(image.button, str(image.position))
-                    image.picture.setWidget(image.button)
-                    self.view.grid.addItem(
-                        image.picture, image.row, image.column
-                                            )
-
-        # When frame size decreased wrap underneath
-        elif int(column) < self.columns:
-            self.columns = int(column)
+        if column != self.columns:
             grid_row = 0
             grid_column = 0
             for n in range(0, len(images)):
                 image = images[n]
-                image.row = grid_row
-                image.column = grid_column
-                image.position = (grid_row, grid_column)
+                # Reassign position only if different than before
+                if image.row != grid_row or image.column != grid_column:
+                    image.row = grid_row
+                    image.column = grid_column
+                    image.position = (grid_row, grid_column)
+                    self.wrap = True
+                else:
+                    self.wrap = False
                 grid_column += 1
-                if grid_column == self.columns:
+                if grid_column == column:
                     grid_row += 1
                     grid_column = 0
-            for m in reversed(range(self.columns, len(images))):
-                image = images[m]
-                image.button.setText(str(image.position))
-                image.mapper.setMapping(image.button, str(image.position))
-                image.picture.setWidget(image.button)
-                self.view.grid.addItem(
-                        image.picture, image.row, image.column
-                                            )
+            # Set images in order if frame is larger
+            if column > self.columns:
+                for w in (range(self.columns-1, len(images))):
+                   self.wrap_images(w)
+            # Set images in reversed order if frame is smaller
+            elif column < self.columns:
+                for w in reversed(range(self.columns-1, len(images))):
+                    self.wrap_images(w)
+            self.columns = column
 
+    def wrap_images(self, w):
+        "Wrap images based on size event"
+        image =  self.image_set.images[w]
+        if self.wrap:
+            image.button.setText(str(image.position))
+            image.mapper.setMapping(image.button, str(image.position))
+            image.picture.setWidget(image.button)
+            self.view.grid.addItem( image.picture, image.row, image.column)
 
 def pystamps(path='*'):
     display = MainWindow(path)
