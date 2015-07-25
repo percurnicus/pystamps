@@ -1,9 +1,10 @@
-#Install the package itself
+numpy
 
+
+#Install pystamps itself
 -e .
 
 #Necessary Packages
 wheel==0.23.0
-planetaryimage==0.2.0
-qimage2ndarray==1.5
-PySide==1.2.2
+pytest==2.7.2
+pytest-qt==1.5.0

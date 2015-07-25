@@ -36,7 +36,12 @@ setup(
     package_dir={'pystamps':
                  'pystamps'},
     include_package_data=True,
-    install_requires=requirements,
+    install_requires=[
+        'numpy',
+        'planetaryimage',
+        'qimage2ndarray',
+        'PySide',
+    ],
     license="BSD",
     zip_safe=False,
     keywords='pystamps',
