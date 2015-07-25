@@ -17,9 +17,8 @@ import pytestqt
 from pytestqt.plugin import QtBot
 import os
 
-
-FILE_1 = os.path.join('tests', '2p129641989eth0361p2600r8m1.img')
-FILE_2 = os.path.join('tests', '1p190678905erp64kcp2600l8c1.img')
+FILE_1 = os.path.join('tests', '1p190678905erp64kcp2600l8c1.img')
+FILE_2 = os.path.join('tests', '2p129641989eth0361p2600r8m1.img')
 FILE_3 = os.path.join('tests', '0047MH0000110010100214C00_DRCL.IMG')
 NOT_SELECTED = (
     "QLabel {background-color: black; border: 3px solid rgb(240, 198, 0)}"

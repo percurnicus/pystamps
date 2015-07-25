@@ -38,7 +38,7 @@ lint:
 	flake8 pystamps tests
 
 test:
-	python setup.py test
+	py.test --ignore=setup.py
 
 test-all:
 	tox
