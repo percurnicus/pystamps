@@ -18,7 +18,7 @@ app = QtGui.QApplication(sys.argv)
 # Create Global Constants
 # Dimensions
 SCREEN_WIDTH = QtGui.QDesktopWidget().availableGeometry().width()
-FRAME_WIDTH = math.sqrt(SCREEN_WIDTH ** 2. * 0.1)
+FRAME_WIDTH = math.sqrt(SCREEN_WIDTH ** 2. * 0.15)
 TOOL_BAR_WIDTH = QtGui.QToolBar().iconSize().width()
 PSIZE = FRAME_WIDTH / 4.
 
@@ -54,11 +54,13 @@ class ImageStamp(object):
 
 class ImageSet(object):
     """Create set of images to be displayed"""
-    def __init__(self, path):
+    def __init__(self, path=None, filename=None):
         row = 0
         column = 0
         if path:
             self.names = glob(os.path.join('%s' % (path), '*'))
+        elif filename:
+            self.names = filename
         else:
             self.names = glob('*')
 
@@ -93,17 +95,17 @@ class ImageSetView(QtGui.QGraphicsView):
     """Displays images in the main widget window with a border marking them as
     selected (white) or unselected (yellow)"""
 
-    def __init__(self, path):
+    def __init__(self, image_list):
         super(ImageSetView, self).__init__()
         # Initialize Objects
-        self.image_set = ImageSet(path)
+        self.images = image_list
 
         # Set Scene and Layout
         self.scene = QtGui.QGraphicsScene()
         self.grid = QtGui.QGraphicsGridLayout()
 
         # Set Images in Grid
-        for image in self.image_set.images:
+        for image in self.images:
 
             # Create invisible button and signal to select iamge
             image.button = QtGui.QPushButton(str(image.position))
@@ -179,7 +181,7 @@ class ImageSetView(QtGui.QGraphicsView):
         """Updates the border indicating selected/not selected"""
         find_pos = re.findall(r'\d+', position)
         pos = (int(find_pos[0]), int(find_pos[1]))
-        for image in self.image_set.images:
+        for image in self.images:
             if image.position == pos and image.selected:
                 image.container.setStyleSheet(NOT_SELECTED)
                 image.title.setStyleSheet(TITLE_NOT_SELECTED)
@@ -192,11 +194,11 @@ class ImageSetView(QtGui.QGraphicsView):
 
 class MainWindow(QtGui.QMainWindow):
     """Holds the tool bars and actions. Makes images clickable."""
-    def __init__(self, path):
+    def __init__(self, image_list):
         super(MainWindow, self).__init__()
         self.columns = 4
-        self.view = ImageSetView(path)
-        self.image_set = self.view.image_set
+        self.view = ImageSetView(image_list)
+        self.images = self.view.images
         self.main_window_set()
         self.selected_all_toggle = True
 
@@ -247,7 +249,7 @@ class MainWindow(QtGui.QMainWindow):
     def print_file(self):
         """Print the selected file absolute paths"""
         space = False
-        for image in self.view.image_set.images:
+        for image in self.images:
             if image.selected:
                 print(os.path.abspath(image.file_name))
                 space = True
@@ -259,25 +261,25 @@ class MainWindow(QtGui.QMainWindow):
     def select_all(self):
         """Toggle between selecting all images and none"""
         if self.selected_all_toggle:
-            for image in self.view.image_set.images:
+            for image in self.images:
                 image.selected = False
                 self.view.select_image(str(image.position))
                 self.selected_all_toggle = False
         else:
-            for image in self.view.image_set.images:
+            for image in self.images:
                 image.selected = True
                 self.view.select_image(str(image.position))
                 self.selected_all_toggle = True
 
     def resizeEvent(self, resizeEvent):
         """Wrap images when a resize event occurs"""
-        images = self.image_set.images
+        images = self.images
         FRAME_WIDTH = self.width()
         column = int(FRAME_WIDTH/PSIZE)
         if column != self.columns:
             grid_row = 0
             grid_column = 0
-            for n in range(0, len(images)):
+            for n in range(0, len(self.images)):
                 image = images[n]
                 # Reassign position only if different than before
                 if image.row != grid_row or image.column != grid_column:
@@ -293,17 +295,17 @@ class MainWindow(QtGui.QMainWindow):
                     grid_column = 0
             # Set images in order if frame is larger
             if column > self.columns:
-                for w in (range(self.columns-1, len(images))):
+                for w in (range(self.columns-1, len(self.images))):
                     self.wrap_images(w)
             # Set images in reversed order if frame is smaller
             elif column < self.columns:
-                for w in reversed(range(self.columns-1, len(images))):
+                for w in reversed(range(self.columns-1, len(self.images))):
                     self.wrap_images(w)
             self.columns = column
 
     def wrap_images(self, w):
         "Wrap images based on size event"
-        image = self.image_set.images[w]
+        image = self.images[w]
         if self.wrap:
             image.button.setText(str(image.position))
             image.mapper.setMapping(image.button, str(image.position))
@@ -312,12 +314,17 @@ class MainWindow(QtGui.QMainWindow):
 
 
 def pystamps(args=None):
-    display = MainWindow(args.dir)
+    image_set = ImageSet(args.dir, args.file)
+    display = MainWindow(image_set.images)
     sys.exit(app.exec_())
 
 
 def cli():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dir', '-d', help="Directory to search for images")
+    parser.add_argument(
+        'file', nargs='*',
+        help="Input filename or glob for files with ceraint extensions"
+        )
     args = parser.parse_args()
     pystamps(args)
