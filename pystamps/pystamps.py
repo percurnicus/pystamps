@@ -10,6 +10,7 @@ import numpy
 from glob import glob
 import math
 import re
+import argparse
 
 
 app = QtGui.QApplication(sys.argv)
@@ -53,13 +54,13 @@ class ImageStamp(object):
 
 class ImageSet(object):
     """Create set of images to be displayed"""
-    def __init__(self, path='*'):
+    def __init__(self, path):
         row = 0
         column = 0
-        if '*' in path:
-            self.names = glob('%s' % (path))
-        else:
+        if path:
             self.names = glob(os.path.join('%s' % (path), '*'))
+        else:
+            self.names = glob('*')
 
         # Remove any duplicates
         seen = {}
@@ -92,7 +93,7 @@ class ImageSetView(QtGui.QGraphicsView):
     """Displays images in the main widget window with a border marking them as
     selected (white) or unselected (yellow)"""
 
-    def __init__(self, path='*'):
+    def __init__(self, path):
         super(ImageSetView, self).__init__()
         # Initialize Objects
         self.image_set = ImageSet(path)
@@ -191,7 +192,7 @@ class ImageSetView(QtGui.QGraphicsView):
 
 class MainWindow(QtGui.QMainWindow):
     """Holds the tool bars and actions. Makes images clickable."""
-    def __init__(self, path='*'):
+    def __init__(self, path):
         super(MainWindow, self).__init__()
         self.columns = 4
         self.view = ImageSetView(path)
@@ -310,10 +311,13 @@ class MainWindow(QtGui.QMainWindow):
             self.view.grid.addItem(image.picture, image.row, image.column)
 
 
-def pystamps(path='*'):
-    display = MainWindow(path)
+def pystamps(args=None):
+    display = MainWindow(args.dir)
     sys.exit(app.exec_())
 
 
-if __name__ == '__main__':
-    pystamps()
+def cli():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--dir', '-d', help="Directory to search for images")
+    args = parser.parse_args()
+    pystamps(args)
