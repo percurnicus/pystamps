@@ -1,10 +1,12 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import sys
 from PySide import QtGui, QtCore
+from PIL import ImageQt, Image
 import os
 from planetaryimage import PDS3Image
-from qimage2ndarray import gray2qimage
+import numpy
 from glob import glob
 import math
 import re
@@ -118,7 +120,10 @@ class ImageSetView(QtGui.QGraphicsView):
                 "QPushButton {background-color: transparent}"
                                         )
             # Create pixmap image
-            qimage = gray2qimage(image.pdsimage.data, True)
+            data = image.pdsimage.data
+            normalize = (data - data.min()) * (255./(data.max() - data.min()))
+            convert_image = Image.fromarray(numpy.uint8(normalize), 'P')
+            qimage = ImageQt.ImageQt(convert_image)
             pixmap_temp = QtGui.QPixmap.fromImage(qimage)
             pixmap = pixmap_temp.scaled(
                 PSIZE, PSIZE, QtCore.Qt.KeepAspectRatio
@@ -243,12 +248,12 @@ class MainWindow(QtGui.QMainWindow):
         space = False
         for image in self.view.image_set.images:
             if image.selected:
-                print os.path.abspath(image.file_name)
+                print(os.path.abspath(image.file_name))
                 space = True
             else:
                 pass
         if space:
-            print ""
+            print("")
 
     def select_all(self):
         """Toggle between selecting all images and none"""
@@ -288,7 +293,7 @@ class MainWindow(QtGui.QMainWindow):
             # Set images in order if frame is larger
             if column > self.columns:
                 for w in (range(self.columns-1, len(images))):
-                   self.wrap_images(w)
+                    self.wrap_images(w)
             # Set images in reversed order if frame is smaller
             elif column < self.columns:
                 for w in reversed(range(self.columns-1, len(images))):
@@ -297,12 +302,13 @@ class MainWindow(QtGui.QMainWindow):
 
     def wrap_images(self, w):
         "Wrap images based on size event"
-        image =  self.image_set.images[w]
+        image = self.image_set.images[w]
         if self.wrap:
             image.button.setText(str(image.position))
             image.mapper.setMapping(image.button, str(image.position))
             image.picture.setWidget(image.button)
-            self.view.grid.addItem( image.picture, image.row, image.column)
+            self.view.grid.addItem(image.picture, image.row, image.column)
+
 
 def pystamps(path='*'):
     display = MainWindow(path)
