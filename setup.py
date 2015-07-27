@@ -38,8 +38,8 @@ setup(
     include_package_data=True,
     install_requires=[
         'numpy',
+        'Pillow',
         'planetaryimage',
-        'qimage2ndarray',
         'PySide',
     ],
     license="BSD",
