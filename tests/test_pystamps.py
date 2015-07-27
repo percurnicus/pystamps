@@ -10,11 +10,7 @@ Tests for `pystamps` module.
 
 
 from pystamps import pystamps
-from PySide import QtGui, QtCore
-import sys
-import pytest
-import pytestqt
-from pytestqt.plugin import QtBot
+from PySide import QtCore
 import os
 
 FILE_1 = os.path.join('tests', '1p190678905erp64kcp2600l8c1.img')
@@ -26,7 +22,7 @@ NOT_SELECTED = (
 SELECTED = (
     "QLabel {background-color: black; border: 3px solid rgb(255, 255, 255)}"
             )
-TEST_DIR = os.path.join('tests', '*')
+TEST_DIR = os.path.join('tests')
 
 
 def test_ImageSet():
