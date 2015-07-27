@@ -13,25 +13,36 @@ from pystamps import pystamps
 from PySide import QtCore
 import os
 
-FILE_1 = os.path.join('tests', '1p190678905erp64kcp2600l8c1.img')
-FILE_2 = os.path.join('tests', '2p129641989eth0361p2600r8m1.img')
-FILE_3 = os.path.join('tests', '0047MH0000110010100214C00_DRCL.IMG')
+FILE_1 = os.path.join(
+    'tests', 'mission_data', '2m132591087cfd1800p2977m2f1.img')
+FILE_2 = os.path.join(
+    'tests', 'mission_data', '2p129641989eth0361p2600r8m1.img')
+FILE_3 = os.path.join(
+    'tests', 'mission_data', '1p190678905erp64kcp2600l8c1.img')
+FILE_4 = os.path.join(
+    'tests', 'mission_data', 'r01090al.img')
+FILE_5 = os.path.join(
+    'tests', 'mission_data', '1p134482118erp0902p2600r8m1.img')
+FILE_6 = os.path.join(
+    'tests', 'mission_data', '58n3118.img')
+FILE_7 = os.path.join(
+    'tests', 'mission_data', '0047MH0000110010100214C00_DRCL.IMG')
 NOT_SELECTED = (
     "QLabel {background-color: black; border: 3px solid rgb(240, 198, 0)}"
                 )
 SELECTED = (
     "QLabel {background-color: black; border: 3px solid rgb(255, 255, 255)}"
             )
-TEST_DIR = os.path.join('tests')
+TEST_DIR = os.path.join('tests', 'mission_data')
 
 
 def test_ImageSet():
     image_set = pystamps.ImageSet(TEST_DIR)
-    assert len(image_set.names) > 2
-    assert len(image_set.inlist) > 2
+    assert len(image_set.names) > 6
+    assert len(image_set.inlist) > 6
     assert len(image_set.inlist) <= len(image_set.names)
-    assert len(image_set.images) == 2
-    assert not(FILE_3 in image_set.images)
+    assert len(image_set.images) == 6
+    assert not(FILE_7 in image_set.images)
     assert str(image_set.images[0]) == FILE_1
     assert str(image_set.images[1]) == FILE_2
 
@@ -57,16 +68,17 @@ def test_ImageStamp_2():
 
 
 def test_ImageStamp_3():
-    stamp = pystamps.ImageStamp(FILE_3, 10, 342)
-    assert stamp.file_name == FILE_3
+    stamp = pystamps.ImageStamp(FILE_7, 10, 342)
+    assert stamp.file_name == FILE_7
     assert stamp.row == 10
     assert stamp.column == 342
     assert not(stamp.pds_compatible)
 
 
 def test_select_image_1(qtbot):
-    view = pystamps.ImageSetView(TEST_DIR)
-    test_image_1 = view.image_set.images[0]
+    image_set = pystamps.ImageSet(TEST_DIR)
+    view = pystamps.ImageSetView(image_set.images)
+    test_image_1 = view.images[0]
     image_1 = test_image_1.button
     qtbot.addWidget(image_1)
     # Test that the image was once not selected
@@ -85,8 +97,9 @@ def test_select_image_1(qtbot):
 
 def test_select_image_2(qtbot):
     # Test Second Image
-    view = pystamps.ImageSetView(TEST_DIR)
-    test_image_2 = view.image_set.images[1]
+    image_set = pystamps.ImageSet(TEST_DIR)
+    view = pystamps.ImageSetView(image_set.images)
+    test_image_2 = view.images[1]
     image_2 = test_image_2.button
     qtbot.addWidget(image_2)
     # Test that the image was once not selected
@@ -104,9 +117,10 @@ def test_select_image_2(qtbot):
 
 
 def test_select_all(qtbot):
-    window = pystamps.MainWindow(TEST_DIR)
-    image_1 = window.image_set.images[0]
-    image_2 = window.image_set.images[1]
+    image_set = pystamps.ImageSet(TEST_DIR)
+    window = pystamps.MainWindow(image_set.images)
+    image_1 = window.images[0]
+    image_2 = window.images[1]
     # Test both images were by default not selected
     assert not(image_1.selected)
     assert not(image_2.selected)
@@ -122,7 +136,7 @@ def test_select_all(qtbot):
     assert image_2.container.styleSheet() == SELECTED
     # Test that all images are deselected again after one is deselected
     window.view
-    button_1 = window.image_set.images[0].button
+    button_1 = window.images[0].button
     qtbot.addWidget(button_1)
     qtbot.mouseClick(button_1, QtCore.Qt.LeftButton)
     assert not(image_1.selected)
@@ -136,9 +150,33 @@ def test_select_all(qtbot):
 
 
 def test_resize_wrap(qtbot):
-    window = pystamps.MainWindow(TEST_DIR)
+    image_set = pystamps.ImageSet(TEST_DIR)
+    window = pystamps.MainWindow(image_set.images)
     default_width = window.width()
+    images = window.images
     # Test that items are correct before resize
-    window.resize(default_width + 100, window.height())
+    assert images[0].position == (0, 0)
+    assert images[4].position == (1, 0)
+    assert images[5].position == (1, 1)
+    # Test items move to the right place after resizing window to be larger
+    window.resize(default_width + default_width/4, window.height())
     assert window.width() > default_width
-    # TODO test when there are enough images to actually wrap images
+    assert images[0].position == (0, 0)
+    assert images[4].position == (0, 4)
+    assert images[5].position == (1, 0)
+    window.resize(window.width() + default_width/4, window.height())
+    assert images[0].position == (0, 0)
+    assert images[4].position == (0, 4)
+    assert images[5].position == (0, 5)
+    # Test items move to the right place after resizing window to be smaller
+    window.resize(window.width() - default_width/4, window.height())
+    assert images[0].position == (0, 0)
+    assert images[4].position == (0, 4)
+    assert images[5].position == (1, 0)
+    window.resize(window.width() - 3 * (default_width/4), window.height())
+    assert images[0].position == (0, 0)
+    assert images[1].position == (0, 1)
+    assert images[2].position == (1, 0)
+    assert images[3].position == (1, 1)
+    assert images[4].position == (2, 0)
+    assert images[5].position == (2, 1)
