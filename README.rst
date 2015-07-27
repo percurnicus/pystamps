@@ -18,14 +18,35 @@ Features
 --------
 
 * This is a still a work in progress
+
 * Current available features:
 
     * Display Images
+
     * Select Images
+
     * Print Image paths
+
+    * Resize window and wrap images
+
+    * Command Line arguments
+
+        * pystamps
+
+            * Displays all pds compatible images in current directory
+
+        * pystamps [filename or glob]
+
+            * Displays single image or all images matching glob that are PDS
+              compatible
+
+        * pystamps -d [directory]
+
+            * displays all images in given directory that are PDS compatible
 
 * Upcoming features
 
     * Pyview
-    * Resize and wrap layout
+
+    * Modify Quality Image Flags
 

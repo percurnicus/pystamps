@@ -38,9 +38,11 @@ lint:
 	flake8 pystamps tests
 
 test:
+	get_mission_data
 	py.test tests/*.py --ignore=setup.py
 
 test-all:
+	get_mission_data
 	tox
 
 coverage:
