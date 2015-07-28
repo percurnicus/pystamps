@@ -43,10 +43,12 @@ Features
         * pystamps -d [directory]
 
             * displays all images in given directory that are PDS compatible
+    * pdsview
+
+        * There are still some bugs in pdsview and these are currently being
+          sorted out.
 
 * Upcoming features
-
-    * Pyview
 
     * Modify Quality Image Flags
 
