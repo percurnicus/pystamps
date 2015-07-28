@@ -11,7 +11,11 @@ from glob import glob
 import math
 import re
 import argparse
-
+try:
+    from pdsview.pdsview import PDSViewer
+    PDSVIEW_INSTALLED = True
+except:
+    PDSVIEW_INSTALLED = False
 
 app = QtGui.QApplication(sys.argv)
 
@@ -54,20 +58,14 @@ class ImageStamp(object):
 
 class ImageSet(object):
     """Create set of images to be displayed"""
-    def __init__(self, path=None, filename=None):
+    def __init__(self, names):
         row = 0
         column = 0
-        if path:
-            self.names = glob(os.path.join('%s' % (path), '*'))
-        elif filename:
-            self.names = filename
-        else:
-            self.names = glob('*')
 
         # Remove any duplicates
         seen = {}
         self.inlist = []
-        for name in self.names:
+        for name in names:
             if name not in seen:
                 seen[name] = 1
                 self.inlist.append(name)
@@ -82,13 +80,6 @@ class ImageSet(object):
                 if column == 4:
                     row += 1
                     column = 0
-
-    def selected(self):
-        selected_images = []
-        for image in self.images:
-            if image.selected:
-                selected_images.append(image)
-        return selected_images
 
 
 class ImageSetView(QtGui.QGraphicsView):
@@ -207,27 +198,42 @@ class MainWindow(QtGui.QMainWindow):
         min_frame_size = (FRAME_WIDTH + TOOL_BAR_WIDTH * 2. + 30,
                           (PSIZE + TOOL_BAR_WIDTH) * 3)
 
-        # Create Actions for tool bar
-        exitAction = QtGui.QAction('&Exit', self)
-        exitAction.triggered.connect(self.close)
-        printAction = QtGui.QAction('&Print Selected Filenames', self)
-        printAction.triggered.connect(self.print_file)
+        # Create select all tool bar button
         allAction = QtGui.QAction('&Select All/None', self)
         allAction.triggered.connect(self.select_all)
-
-        # Assign actions to the tool bar object
-        self.exit = self.addToolBar('Exit')
-        self.exit.addAction(exitAction)
-        self.exit.setStyleSheet(TOOLBAR)
-        self.exit.setParent(self)
-        self.print_image_path = self.addToolBar('Print Selected Filenames')
-        self.print_image_path.addAction(printAction)
-        self.print_image_path.setStyleSheet(TOOLBAR)
-        self.print_image_path.setParent(self)
         self.selectAll = self.addToolBar('Select All/None')
         self.selectAll.addAction(allAction)
         self.selectAll.setStyleSheet(TOOLBAR)
         self.selectAll.setParent(self)
+
+        # Create a open in pdsview tool bar button
+        viewAction = QtGui.QAction('&Open Selected in pdsview', self)
+        viewAction.triggered.connect(self.open_pdsview)
+        not_installed = QtGui.QAction('&Open Selected in pdsview', self)
+        not_installed.triggered.connect(self.pdsview_not_installed_window)
+        self.image_pdsview = self.addToolBar('Open Selected in pdsview')
+        if PDSVIEW_INSTALLED:
+            self.image_pdsview.addAction(viewAction)
+        else:
+            self.image_pdsview.addAction(not_installed)
+        self.image_pdsview.setStyleSheet(TOOLBAR)
+        self.image_pdsview.setParent(self)
+
+        # Create a print select images tool bar button
+        printAction = QtGui.QAction('&Print Selected Filenames', self)
+        printAction.triggered.connect(self.print_file)
+        self.print_image_path = self.addToolBar('Print Selected Filenames')
+        self.print_image_path.addAction(printAction)
+        self.print_image_path.setStyleSheet(TOOLBAR)
+        self.print_image_path.setParent(self)
+
+        # Create an close tool bar button
+        exitAction = QtGui.QAction('&Close', self)
+        exitAction.triggered.connect(self.close)
+        self.exit = self.addToolBar('Close')
+        self.exit.addAction(exitAction)
+        self.exit.setStyleSheet(TOOLBAR)
+        self.exit.setParent(self)
 
         # Set window to appear in the cebter of the screen
         qr = self.frameGeometry()
@@ -246,18 +252,6 @@ class MainWindow(QtGui.QMainWindow):
         palette.setColor(QtGui.QPalette.Background, QtCore.Qt.black)
         self.setPalette(palette)
 
-    def print_file(self):
-        """Print the selected file absolute paths"""
-        space = False
-        for image in self.images:
-            if image.selected:
-                print(os.path.abspath(image.file_name))
-                space = True
-            else:
-                pass
-        if space:
-            print("")
-
     def select_all(self):
         """Toggle between selecting all images and none"""
         if self.selected_all_toggle:
@@ -270,6 +264,45 @@ class MainWindow(QtGui.QMainWindow):
                 image.selected = True
                 self.view.select_image(str(image.position))
                 self.selected_all_toggle = True
+
+    def open_pdsview(self):
+        """Open selected images in pdsview"""
+        selected = []
+        for image in self.images:
+            if image.selected:
+                selected.append(image.file_name)
+        if len(selected) > 0:
+            self.pdswindow = QtGui.QWidget()
+            viewer = PDSViewer()
+            viewer.parse_arguments(selected)
+            viewer.resize(self.width(), self.height())
+            viewer.show()
+        else:
+            print("Must select images first")
+
+    def pdsview_not_installed_window(self):
+        """A Message box appears explaining that pdsview is not installed"""
+        # There is a bug in QMessageBox right now and prints an error message
+        # This does not cause the program to crash so not to worry
+        QtGui.QMessageBox.information(
+            self, 'pdsview', "pdsview is not installed"
+            )
+
+    def print_file(self):
+        """Print the selected file absolute paths"""
+        space = False
+        none_select = True
+        for image in self.images:
+            if image.selected:
+                print(os.path.abspath(image.file_name))
+                space = True
+                none_select = False
+            else:
+                pass
+        if space:
+            print("")
+        if none_select:
+            print("No Images Selected")
 
     def resizeEvent(self, resizeEvent):
         """Wrap images when a resize event occurs"""
@@ -314,12 +347,29 @@ class MainWindow(QtGui.QMainWindow):
 
 
 def pystamps(args=None):
-    image_set = ImageSet(args.dir, args.file)
+    """Run pystamps from python shell or command line with arguments"""
+    try:
+        if args.file:
+            files = args.file
+        elif args.dir:
+            files = glob(os.path.join(str(args.dir), '*'))
+        else:
+            files = glob('*')
+    except AttributeError:
+        if os.path.isdir(args):
+            files = glob(os.path.join('%s' % (args), '*'))
+        elif args:
+            files = glob(args)
+        else:
+            files = glob('*')
+
+    image_set = ImageSet(files)
     display = MainWindow(image_set.images)
     sys.exit(app.exec_())
 
 
 def cli():
+    """Give pystamps ability to run from command line"""
     parser = argparse.ArgumentParser()
     parser.add_argument('--dir', '-d', help="Directory to search for images")
     parser.add_argument(
