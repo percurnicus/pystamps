@@ -24,7 +24,7 @@ FILE_4 = os.path.join(
 FILE_5 = os.path.join(
     'tests', 'mission_data', '1p134482118erp0902p2600r8m1.img')
 FILE_6 = os.path.join(
-    'tests', 'mission_data', '58n3118.img')
+    'tests', 'mission_data', 'h58n3118.img')
 FILE_7 = os.path.join(
     'tests', 'mission_data', '0047MH0000110010100214C00_DRCL.IMG')
 NOT_SELECTED = (
@@ -33,15 +33,13 @@ NOT_SELECTED = (
 SELECTED = (
     "QLabel {background-color: black; border: 3px solid rgb(255, 255, 255)}"
             )
-TEST_DIR = os.path.join('tests', 'mission_data')
+TEST_DIR = [FILE_1, FILE_2, FILE_3, FILE_4, FILE_5, FILE_6, FILE_7]
 
 
 def test_ImageSet():
-    image_set = pystamps.ImageSet(TEST_DIR)
-    assert len(image_set.names) > 6
-    assert len(image_set.inlist) > 6
-    assert len(image_set.inlist) <= len(image_set.names)
-    assert len(image_set.images) == 6
+    image_set = pystamps.ImageSet([FILE_1, FILE_2, FILE_2, FILE_3, FILE_7])
+    assert len(image_set.inlist) < 5
+    assert len(image_set.images) == 3
     assert not(FILE_7 in image_set.images)
     assert str(image_set.images[0]) == FILE_1
     assert str(image_set.images[1]) == FILE_2
@@ -76,7 +74,7 @@ def test_ImageStamp_3():
 
 
 def test_select_image_1(qtbot):
-    image_set = pystamps.ImageSet(TEST_DIR)
+    image_set = pystamps.ImageSet([FILE_4])
     view = pystamps.ImageSetView(image_set.images)
     test_image_1 = view.images[0]
     image_1 = test_image_1.button
@@ -99,19 +97,29 @@ def test_select_image_2(qtbot):
     # Test Second Image
     image_set = pystamps.ImageSet(TEST_DIR)
     view = pystamps.ImageSetView(image_set.images)
-    test_image_2 = view.images[1]
+    test_image_1 = view.images[3]
+    image_1 = test_image_1.button
+    qtbot.addWidget(image_1)
+    test_image_2 = view.images[4]
     image_2 = test_image_2.button
     qtbot.addWidget(image_2)
-    # Test that the image was once not selected
+    # Test that the image was by default not selected
+    assert not(test_image_1.selected) and not(test_image_1.selected)
+    assert test_image_1.container.styleSheet() == NOT_SELECTED
+    assert test_image_2.container.styleSheet() == NOT_SELECTED
+    qtbot.mouseClick(image_1, QtCore.Qt.LeftButton)
+    # Test the image is now selected
+    assert test_image_1.selected
+    # Test the border changed
+    assert test_image_1.container.styleSheet() == SELECTED
+    # Test second image doens't change
     assert not(test_image_2.selected)
     assert test_image_2.container.styleSheet() == NOT_SELECTED
-    qtbot.mouseClick(image_2, QtCore.Qt.LeftButton)
-    # Test the image is now selected
-    assert test_image_2.selected
-    # Test the border changed
-    assert test_image_2.container.styleSheet() == SELECTED
-    qtbot.mouseClick(image_2, QtCore.Qt.LeftButton)
+    qtbot.mouseClick(image_1, QtCore.Qt.LeftButton)
     # Test that the program unselects
+    assert not(test_image_1.selected)
+    assert test_image_1.container.styleSheet() == NOT_SELECTED
+    # Test second image doens't change
     assert not(test_image_2.selected)
     assert test_image_2.container.styleSheet() == NOT_SELECTED
 
