@@ -12,12 +12,15 @@ import math
 import re
 import argparse
 try:
-    from pdsview.pdsview import PDSViewer
+    from pdsview import pdsview
     PDSVIEW_INSTALLED = True
 except:
     PDSVIEW_INSTALLED = False
 
-app = QtGui.QApplication(sys.argv)
+app = QtGui.QApplication.instance()
+if not app:
+    app = QtGui.QApplication(sys.argv)
+
 
 # Create Global Constants
 # Dimensions
@@ -39,7 +42,34 @@ TITLE_NOT_SELECTED = "QLabel{color: rgb(240, 198, 0); background-color: black}"
 
 
 class ImageStamp(object):
-    """Assign each image attributes below"""
+    """An image object that will be used to display the image in ImageSetView.
+
+    Parameters
+    ----------
+    filename: string
+        A file and its relative path from the current working directory
+    row: int
+        The row the image will be in by default
+    column: int
+        The column the image will be in by default
+
+    Attributes
+    ----------
+    file_name : string
+        The filename of the image
+    row : int
+        The row the image is in
+    column : int
+        The column the image is in
+    pdsimage : planetaryimage object
+        A planetaryimage object
+    position : tuple
+        The grid position of the image
+    selected : bool
+        Indicate that the image is selected (True) or not (False)
+    pds_compatible: bool
+        Indicates whether planetaryimage can open the file
+    """
     def __init__(self, filename, row, column):
         self.file_name = filename
         self.row = row
@@ -57,18 +87,30 @@ class ImageStamp(object):
 
 
 class ImageSet(object):
-    """Create set of images to be displayed"""
-    def __init__(self, names):
+    """A set of pds images to be displayed in Pystamps.
+
+    Parameters
+    ----------
+    filepaths: list
+        A list of filepaths to pass through ImageStamp
+
+    Attribute
+    ---------
+    images: list
+        A list of ginga images with attributes set in ImageStamp that can be
+        displayed in Pystmaps
+    """
+    def __init__(self, filepaths):
         row = 0
         column = 0
 
         # Remove any duplicates
         seen = {}
         self.inlist = []
-        for name in names:
-            if name not in seen:
-                seen[name] = 1
-                self.inlist.append(name)
+        for filepath in filepaths:
+            if filepath not in seen:
+                seen[filepath] = 1
+                self.inlist.append(filepath)
 
         # Create image objects with attributes set in ImageStamp
         self.images = []
@@ -83,8 +125,12 @@ class ImageSet(object):
 
 
 class ImageSetView(QtGui.QGraphicsView):
-    """Displays images in the main widget window with a border marking them as
-    selected (white) or unselected (yellow)"""
+    """The scene and grid layout where the pictures are displayed
+
+    Parameters
+    ----------
+    image_list: list
+        A list of image objects with attributes set in ImageStamp"""
 
     def __init__(self, image_list):
         super(ImageSetView, self).__init__()
@@ -130,7 +176,8 @@ class ImageSetView(QtGui.QGraphicsView):
             image.container.setFixedSize(PSIZE, PSIZE)
 
             # Make Title for each image as the file name, set button as parent
-            image.title = QtGui.QLabel(image.file_name, image.button)
+            image.title = QtGui.QLabel(
+                os.path.basename(image.file_name), image.button)
             image.title.setFont(QtGui.QFont('Helvetica'))
             image.title.setStyleSheet(TITLE_NOT_SELECTED)
             image.title.setAlignment(QtCore.Qt.AlignTop)
@@ -184,7 +231,11 @@ class ImageSetView(QtGui.QGraphicsView):
 
 
 class MainWindow(QtGui.QMainWindow):
-    """Holds the tool bars and actions. Makes images clickable."""
+    """Holds the tool bars and their actions
+    Parameters
+    ----------
+    image_list: list
+        A list of image objects with attributes set in ImageStamp"""
     def __init__(self, image_list):
         super(MainWindow, self).__init__()
         self.columns = 4
@@ -235,12 +286,6 @@ class MainWindow(QtGui.QMainWindow):
         self.exit.setStyleSheet(TOOLBAR)
         self.exit.setParent(self)
 
-        # Set window to appear in the cebter of the screen
-        qr = self.frameGeometry()
-        cp = QtGui.QDesktopWidget().availableGeometry().center()
-        qr.moveCenter(cp)
-        self.move(qr.topLeft())
-
         # Display Window
         self.resize(min_frame_size[0], min_frame_size[1])
         self.setWindowTitle('Pystamps')
@@ -251,6 +296,12 @@ class MainWindow(QtGui.QMainWindow):
         palette = QtGui.QPalette()
         palette.setColor(QtGui.QPalette.Background, QtCore.Qt.black)
         self.setPalette(palette)
+
+        # Set window to appear in the cebter of the screen
+        qr = self.frameGeometry()
+        cp = QtGui.QDesktopWidget().availableGeometry().center()
+        qr.moveCenter(cp)
+        self.move(qr.topLeft())
 
     def select_all(self):
         """Toggle between selecting all images and none"""
@@ -272,9 +323,8 @@ class MainWindow(QtGui.QMainWindow):
             if image.selected:
                 selected.append(image.file_name)
         if len(selected) > 0:
-            self.pdswindow = QtGui.QWidget()
-            viewer = PDSViewer()
-            viewer.parse_arguments(selected)
+            self.image_set = pdsview.ImageSet(selected)
+            viewer = pdsview.PDSViewer(self.image_set)
             viewer.resize(self.width(), self.height())
             viewer.show()
         else:
@@ -349,10 +399,13 @@ class MainWindow(QtGui.QMainWindow):
 def pystamps(args=None):
     """Run pystamps from python shell or command line with arguments"""
     try:
-        if args.file:
+        if len(args.file) > 1:
             files = args.file
-        elif args.dir:
-            files = glob(os.path.join(str(args.dir), '*'))
+        elif len(args.file) == 1:
+            if os.path.isdir(args.file[0]):
+                files = glob(os.path.join(str(args.file[0]), '*'))
+            elif os.path.isfile(args.file[0]):
+                files = glob(str(args.file[0]))
         else:
             files = glob('*')
     except AttributeError:
@@ -371,7 +424,6 @@ def pystamps(args=None):
 def cli():
     """Give pystamps ability to run from command line"""
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dir', '-d', help="Directory to search for images")
     parser.add_argument(
         'file', nargs='*',
         help="Input filename or glob for files with ceraint extensions"
