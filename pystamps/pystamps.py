@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 
 import sys
-from PySide import QtGui, QtCore
-from PIL import ImageQt, Image
+from ginga.qtw.QtHelp import QtGui, QtCore
+from ginga.qtw.ImageViewCanvasQt import ImageViewCanvas
+from ginga.BaseImage import BaseImage
 import os
 from planetaryimage import PDS3Image
-import numpy
 from glob import glob
 import math
 import re
@@ -31,17 +31,17 @@ PSIZE = FRAME_WIDTH / 4.
 
 # Styles
 NOT_SELECTED = (
-    "QLabel {background-color: black; border: 3px solid rgb(240, 198, 0)}"
+    "QLabel {color: transparent; border: 3px solid rgb(240, 198, 0)}"
                 )
 SELECTED = (
-    "QLabel {background-color: black; border: 3px solid rgb(255, 255, 255)}"
+    "QLabel {color: transparent; border: 3px solid rgb(255, 255, 255)}"
             )
 TOOLBAR = "QToolBar {background-color: gray}"
 TITLE_SELECTED = "QLabel{color: white; background-color: black}"
 TITLE_NOT_SELECTED = "QLabel{color: rgb(240, 198, 0); background-color: black}"
 
 
-class ImageStamp(object):
+class ImageStamp(BaseImage):
     """An image object that will be used to display the image in ImageSetView.
 
     Parameters
@@ -61,7 +61,7 @@ class ImageStamp(object):
         The row the image is in
     column : int
         The column the image is in
-    pdsimage : planetaryimage object
+    pds_image : planetaryimage object
         A planetaryimage object
     position : tuple
         The grid position of the image
@@ -70,12 +70,16 @@ class ImageStamp(object):
     pds_compatible: bool
         Indicates whether planetaryimage can open the file
     """
-    def __init__(self, filename, row, column):
+    def __init__(self, filename, row, column, data_np=None, metadata=None,
+                 logger=None):
+        BaseImage.__init__(self, data_np=data_np, metadata=metadata,
+                           logger=logger)
         self.file_name = filename
         self.row = row
         self.column = column
         try:
-            self.pdsimage = PDS3Image.open(filename)
+            self.pds_image = PDS3Image.open(filename)
+            self.set_data(self.pds_image.data)
             self.position = (row, column)
             self.selected = False
             self.pds_compatible = True
@@ -87,12 +91,12 @@ class ImageStamp(object):
 
 
 class ImageSet(object):
-    """A set of pds images to be displayed in Pystamps.
+    """A set of PDS images to be displayed in Pystamps.
 
     Parameters
     ----------
     filepaths: list
-        A list of filepaths to pass through ImageStamp
+        A list of file paths to pass through ImageStamp
 
     Attribute
     ---------
@@ -143,8 +147,7 @@ class ImageSetView(QtGui.QGraphicsView):
 
         # Set Images in Grid
         for image in self.images:
-
-            # Create invisible button and signal to select iamge
+            # Create an invisible button and signal to select image
             image.button = QtGui.QPushButton(str(image.position))
             image.mapper = QtCore.QSignalMapper(self)
             image.mapper.setMapping(image.button, str(image.position))
@@ -157,21 +160,22 @@ class ImageSetView(QtGui.QGraphicsView):
                 self.select_image
                         )
             image.button.setStyleSheet(
-                "QPushButton {background-color: transparent}"
-                                        )
-            # Create pixmap image
-            data = image.pdsimage.data
-            normalize = (data - data.min()) * (255./(data.max() - data.min()))
-            convert_image = Image.fromarray(numpy.uint8(normalize), 'P')
-            qimage = ImageQt.ImageQt(convert_image)
-            pixmap_temp = QtGui.QPixmap.fromImage(qimage)
-            pixmap = pixmap_temp.scaled(
-                PSIZE, PSIZE, QtCore.Qt.KeepAspectRatio
-                                        )
+                "QPushButton {background-color: transparent}")
 
-            # Create container to place in grid, set button as parent
-            image.container = QtGui.QLabel(image.button)
-            image.container.setPixmap(pixmap)
+            # Create the image
+            pds_view = ImageViewCanvas(render='widget')
+            pds_view.set_image(image)
+            pds_view.set_window_size(PSIZE, PSIZE)
+            pds_view.zoom_fit()
+            pds_view.set_bg(0, 0, 0)
+            pdsview_widget = pds_view.get_widget()
+            pdsview_widget.setParent(image.button)
+            pdsview_widget.resize(PSIZE, PSIZE)
+            pds_view.rotate(180)
+
+            # Create image container to create border, set button as parent
+            image.container = QtGui.QLabel()
+            image.container.setParent(image.button)
             image.container.setStyleSheet(NOT_SELECTED)
             image.container.setFixedSize(PSIZE, PSIZE)
 
@@ -183,7 +187,7 @@ class ImageSetView(QtGui.QGraphicsView):
             image.title.setAlignment(QtCore.Qt.AlignTop)
             image.title.setFixedWidth(PSIZE)
 
-            # Set image button in proxy widget to add to grid.
+            # Set image button in proxy widget to add to graphics grid.
             # Because button is image's parent, adding button as image
             image.picture = QtGui.QGraphicsProxyWidget()
             image.picture.setWidget(image.button)
@@ -204,6 +208,7 @@ class ImageSetView(QtGui.QGraphicsView):
             self.grid.addItem(
                 image.picture, image.row, image.column)
             image.container.move(0, image.title.height())
+            pdsview_widget.move(0, image.title.height())
             image.title.setAlignment(QtCore.Qt.AlignCenter)
             self.grid.setMaximumWidth(PSIZE)
 
@@ -245,9 +250,11 @@ class MainWindow(QtGui.QMainWindow):
         self.selected_all_toggle = True
 
     def main_window_set(self):
-        """Create the main window of GUI with toolbars"""
-        min_frame_size = (FRAME_WIDTH + TOOL_BAR_WIDTH * 2. + 30,
-                          (PSIZE + TOOL_BAR_WIDTH) * 3)
+        """Create the main window of GUI with tool bars"""
+        min_frame_width = FRAME_WIDTH + TOOL_BAR_WIDTH * 2.
+        title_height = self.images[0].title.height()
+        min_frame_height = (PSIZE + title_height + TOOL_BAR_WIDTH) * 3
+        min_frame_size = (min_frame_width, min_frame_height)
 
         # Create select all tool bar button
         allAction = QtGui.QAction('&Select All/None', self)
@@ -292,12 +299,12 @@ class MainWindow(QtGui.QMainWindow):
         self.setCentralWidget(self.view)
         self.show()
 
-        # Set Bakcground to be black
+        # Set Background to be black
         palette = QtGui.QPalette()
         palette.setColor(QtGui.QPalette.Background, QtCore.Qt.black)
         self.setPalette(palette)
 
-        # Set window to appear in the cebter of the screen
+        # Set window to appear in the center of the screen
         qr = self.frameGeometry()
         cp = QtGui.QDesktopWidget().availableGeometry().center()
         qr.moveCenter(cp)
@@ -426,7 +433,7 @@ def cli():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         'file', nargs='*',
-        help="Input filename or glob for files with ceraint extensions"
+        help="Input filename or glob for files with certain extensions"
         )
     args = parser.parse_args()
     pystamps(args)
