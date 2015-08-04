@@ -21,7 +21,6 @@ app = QtGui.QApplication.instance()
 if not app:
     app = QtGui.QApplication(sys.argv)
 
-
 # Create Global Constants
 # Dimensions
 SCREEN_WIDTH = QtGui.QDesktopWidget().availableGeometry().width()
@@ -126,6 +125,7 @@ class ImageSet(object):
                 if column == 4:
                     row += 1
                     column = 0
+        self.selected = []
 
 
 class ImageSetView(QtGui.QGraphicsView):
@@ -144,6 +144,7 @@ class ImageSetView(QtGui.QGraphicsView):
         # Set Scene and Layout
         self.scene = QtGui.QGraphicsScene()
         self.grid = QtGui.QGraphicsGridLayout()
+        self.selected = []
 
         # Set Images in Grid
         for image in self.images:
@@ -229,10 +230,15 @@ class ImageSetView(QtGui.QGraphicsView):
                 image.container.setStyleSheet(NOT_SELECTED)
                 image.title.setStyleSheet(TITLE_NOT_SELECTED)
                 image.selected = False
+                if image.file_name in self.selected:
+                    self.selected.remove(image)
+
             elif image.position == pos and not(image.selected):
                 image.container.setStyleSheet(SELECTED)
                 image.title.setStyleSheet(TITLE_SELECTED)
                 image.selected = True
+                if image.file_name not in self.selected:
+                    self.selected.append(image)
 
 
 class MainWindow(QtGui.QMainWindow):
@@ -248,6 +254,7 @@ class MainWindow(QtGui.QMainWindow):
         self.images = self.view.images
         self.main_window_set()
         self.selected_all_toggle = True
+        self.selected = self.view.selected
 
     def main_window_set(self):
         """Create the main window of GUI with tool bars"""
@@ -297,12 +304,6 @@ class MainWindow(QtGui.QMainWindow):
         self.resize(min_frame_size[0], min_frame_size[1])
         self.setWindowTitle('Pystamps')
         self.setCentralWidget(self.view)
-        self.show()
-
-        # Set Background to be black
-        palette = QtGui.QPalette()
-        palette.setColor(QtGui.QPalette.Background, QtCore.Qt.black)
-        self.setPalette(palette)
 
         # Set window to appear in the center of the screen
         qr = self.frameGeometry()
@@ -406,26 +407,46 @@ class MainWindow(QtGui.QMainWindow):
 def pystamps(args=None):
     """Run pystamps from python shell or command line with arguments"""
     try:
-        if len(args.file) > 1:
-            files = args.file
-        elif len(args.file) == 1:
-            if os.path.isdir(args.file[0]):
-                files = glob(os.path.join(str(args.file[0]), '*'))
-            elif os.path.isfile(args.file[0]):
-                files = glob(str(args.file[0]))
+        if len(args.file) > 0:
+            files = []
+            for arg in args.file:
+                if os.path.isdir(arg):
+                    files += glob(os.path.join(str(arg), '*'))
+                elif os.path.isfile(arg):
+                    files += glob(str(arg))
         else:
             files = glob('*')
     except AttributeError:
-        if os.path.isdir(args):
-            files = glob(os.path.join('%s' % (args), '*'))
-        elif args:
-            files = glob(args)
-        else:
-            files = glob('*')
+        files = []
+        if isinstance(args, list):
+            for arg in args:
+                files += arg_parser(arg)
+        elif isinstance(args, str):
+            if ',' in args:
+                names = args.split(',')
+                for name in names:
+                    files = files + arg_parser(name.strip())
+            else:
+                files = arg_parser(args)
 
     image_set = ImageSet(files)
     display = MainWindow(image_set.images)
-    sys.exit(app.exec_())
+    display.show()
+    try:
+        sys.exit(app.exec_())
+    except:
+        pass
+    return display.selected
+
+
+def arg_parser(args):
+    if os.path.isdir(args):
+            files = glob(os.path.join('%s' % (args), '*'))
+    elif args:
+        files = glob(args)
+    else:
+        files = glob('*')
+    return files
 
 
 def cli():
