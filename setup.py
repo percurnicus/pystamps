@@ -29,7 +29,7 @@ setup(
     long_description=readme + '\n\n' + history,
     author="Perry Vargas",
     author_email='perrybvargas@gmail.com',
-    url='https://github.com/pbvarga1/pystamps',
+    url='https://github.com/pbvarga1/pmakeystamps',
     packages=[
         'pystamps',
     ],
@@ -38,9 +38,9 @@ setup(
     include_package_data=True,
     install_requires=[
         'numpy',
-        'Pillow',
         'planetaryimage',
         'PySide',
+        'ginga>=2.1',
     ],
     license="BSD",
     zip_safe=False,
