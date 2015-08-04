@@ -301,6 +301,7 @@ class MainWindow(QtGui.QMainWindow):
         self.exit.setParent(self)
 
         # Display Window
+        self.show()
         self.resize(min_frame_size[0], min_frame_size[1])
         self.setWindowTitle('Pystamps')
         self.setCentralWidget(self.view)
@@ -431,7 +432,6 @@ def pystamps(args=None):
 
     image_set = ImageSet(files)
     display = MainWindow(image_set.images)
-    display.show()
     try:
         sys.exit(app.exec_())
     except:

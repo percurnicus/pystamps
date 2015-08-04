@@ -159,10 +159,8 @@ def test_select_all(qtbot):
 
 
 def test_resize_wrap(qtbot):
-    image_set = pystamps.ImageSet(TEST_DIR)
-    window = pystamps.MainWindow(image_set.images)
+    window = pystamps.MainWindow(IMAGE_SET.images)
     qtbot.addWidget(window)
-    window.show()
     default_width = window.width()
     images = window.images
     # Test that items are correct before resize
