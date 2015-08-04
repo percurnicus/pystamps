@@ -301,10 +301,10 @@ class MainWindow(QtGui.QMainWindow):
         self.exit.setParent(self)
 
         # Display Window
-        self.show()
-        self.resize(min_frame_size[0], min_frame_size[1])
         self.setWindowTitle('Pystamps')
         self.setCentralWidget(self.view)
+        self.resize(min_frame_size[0], min_frame_size[1])
+        self.show()
 
         # Set window to appear in the center of the screen
         qr = self.frameGeometry()
