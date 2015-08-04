@@ -10,8 +10,13 @@ Tests for `pystamps` module.
 
 
 from pystamps import pystamps
-from PySide import QtCore
+from ginga.qtw.QtHelp import QtGui, QtCore
 import os
+import sys
+
+app = QtGui.QApplication.instance()
+if not app:
+    app = QtGui.QApplication(sys.argv)
 
 FILE_1 = os.path.join(
     'tests', 'mission_data', '2m132591087cfd1800p2977m2f1.img')
@@ -28,12 +33,13 @@ FILE_6 = os.path.join(
 FILE_7 = os.path.join(
     'tests', 'mission_data', '0047MH0000110010100214C00_DRCL.IMG')
 NOT_SELECTED = (
-    "QLabel {background-color: black; border: 3px solid rgb(240, 198, 0)}"
+    "QLabel {color: transparent; border: 3px solid rgb(240, 198, 0)}"
                 )
 SELECTED = (
-    "QLabel {background-color: black; border: 3px solid rgb(255, 255, 255)}"
+    "QLabel {color: transparent; border: 3px solid rgb(255, 255, 255)}"
             )
 TEST_DIR = [FILE_1, FILE_2, FILE_3, FILE_4, FILE_5, FILE_6, FILE_7]
+IMAGE_SET = pystamps.ImageSet(TEST_DIR)
 
 
 def test_ImageSet():
@@ -75,10 +81,10 @@ def test_ImageStamp_3():
 
 def test_select_image_1(qtbot):
     image_set = pystamps.ImageSet([FILE_4])
-    view = pystamps.ImageSetView(image_set.images)
-    test_image_1 = view.images[0]
+    window = pystamps.MainWindow(image_set.images)
+    qtbot.addWidget(window)
+    test_image_1 = window.images[0]
     image_1 = test_image_1.button
-    qtbot.addWidget(image_1)
     # Test that the image was once not selected
     assert not(test_image_1.selected)
     assert test_image_1.container.styleSheet() == NOT_SELECTED
@@ -95,14 +101,11 @@ def test_select_image_1(qtbot):
 
 def test_select_image_2(qtbot):
     # Test Second Image
-    image_set = pystamps.ImageSet(TEST_DIR)
-    view = pystamps.ImageSetView(image_set.images)
-    test_image_1 = view.images[3]
+    window = pystamps.MainWindow(IMAGE_SET.images)
+    qtbot.addWidget(window)
+    test_image_1 = window.images[0]
     image_1 = test_image_1.button
-    qtbot.addWidget(image_1)
-    test_image_2 = view.images[4]
-    image_2 = test_image_2.button
-    qtbot.addWidget(image_2)
+    test_image_2 = window.images[1]
     # Test that the image was by default not selected
     assert not(test_image_1.selected) and not(test_image_1.selected)
     assert test_image_1.container.styleSheet() == NOT_SELECTED
@@ -125,8 +128,8 @@ def test_select_image_2(qtbot):
 
 
 def test_select_all(qtbot):
-    image_set = pystamps.ImageSet(TEST_DIR)
-    window = pystamps.MainWindow(image_set.images)
+    window = pystamps.MainWindow(IMAGE_SET.images)
+    qtbot.addWidget(window)
     image_1 = window.images[0]
     image_2 = window.images[1]
     # Test both images were by default not selected
@@ -143,9 +146,7 @@ def test_select_all(qtbot):
     assert image_1.container.styleSheet() == SELECTED
     assert image_2.container.styleSheet() == SELECTED
     # Test that all images are deselected again after one is deselected
-    window.view
     button_1 = window.images[0].button
-    qtbot.addWidget(button_1)
     qtbot.mouseClick(button_1, QtCore.Qt.LeftButton)
     assert not(image_1.selected)
     assert image_1.container.styleSheet() == NOT_SELECTED
@@ -158,8 +159,9 @@ def test_select_all(qtbot):
 
 
 def test_resize_wrap(qtbot):
-    image_set = pystamps.ImageSet(TEST_DIR)
-    window = pystamps.MainWindow(image_set.images)
+    window = pystamps.MainWindow(IMAGE_SET.images)
+    qtbot.addWidget(window)
+    window.show()
     default_width = window.width()
     images = window.images
     # Test that items are correct before resize
@@ -188,3 +190,4 @@ def test_resize_wrap(qtbot):
     assert images[3].position == (1, 1)
     assert images[4].position == (2, 0)
     assert images[5].position == (2, 1)
+    window.close()
