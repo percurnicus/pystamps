@@ -38,7 +38,7 @@ NOT_SELECTED = (
 SELECTED = (
     "QLabel {color: transparent; border: 3px solid rgb(255, 255, 255)}"
             )
-TEST_DIR = [FILE_1, FILE_2, FILE_3, FILE_4, FILE_5, FILE_6, FILE_7]
+TEST_DIR = [FILE_1, FILE_2, FILE_3, FILE_5, FILE_6, FILE_7]
 IMAGE_SET = pystamps.ImageSet(TEST_DIR)
 
 
@@ -166,28 +166,23 @@ def test_resize_wrap(qtbot):
     images = window.images
     # Test that items are correct before resize
     assert images[0].position == (0, 0)
+    assert images[3].position == (0, 3)
     assert images[4].position == (1, 0)
-    assert images[5].position == (1, 1)
     # Test items move to the right place after resizing window to be larger
     window.resize(default_width + default_width/4, window.height())
     assert window.width() > default_width
     assert images[0].position == (0, 0)
+    assert images[3].position == (0, 3)
     assert images[4].position == (0, 4)
-    assert images[5].position == (1, 0)
-    window.resize(window.width() + default_width/4, window.height())
-    assert images[0].position == (0, 0)
-    assert images[4].position == (0, 4)
-    assert images[5].position == (0, 5)
     # Test items move to the right place after resizing window to be smaller
     window.resize(window.width() - default_width/4, window.height())
     assert images[0].position == (0, 0)
-    assert images[4].position == (0, 4)
-    assert images[5].position == (1, 0)
-    window.resize(window.width() - 3 * (default_width/4), window.height())
+    assert images[3].position == (0, 3)
+    assert images[4].position == (1, 0)
+    window.resize(window.width() - 2 * (default_width/4), window.height())
     assert images[0].position == (0, 0)
     assert images[1].position == (0, 1)
     assert images[2].position == (1, 0)
     assert images[3].position == (1, 1)
     assert images[4].position == (2, 0)
-    assert images[5].position == (2, 1)
     window.close()
