@@ -74,6 +74,8 @@ class ImageStamp(BaseImage):
         BaseImage.__init__(self, data_np=data_np, metadata=metadata,
                            logger=logger)
         self.file_name = filename
+        self.abspath = os.path.abspath(filename)
+        self.basename = os.path.basename(filename)
         self.row = row
         self.column = column
         try:
@@ -175,7 +177,6 @@ class ImageSetView(QtGui.QGraphicsView):
             pdsview_widget.resize(PSIZE, PSIZE)
             pds_view.rotate(180)
 
-
             # Create image container to create border, set button as parent
             image.container = QtGui.QLabel()
             image.container.setParent(image.button)
@@ -183,8 +184,7 @@ class ImageSetView(QtGui.QGraphicsView):
             image.container.setFixedSize(PSIZE, PSIZE)
 
             # Make Title for each image as the file name, set button as parent
-            image.title = QtGui.QLabel(
-                os.path.basename(image.file_name), image.button)
+            image.title = QtGui.QLabel(image.basename, image.button)
             image.title.setFont(QtGui.QFont('Helvetica'))
             image.title.setStyleSheet(TITLE_NOT_SELECTED)
             image.title.setAlignment(QtCore.Qt.AlignTop)
@@ -355,7 +355,7 @@ class MainWindow(QtGui.QMainWindow):
         none_select = True
         for image in self.images:
             if image.selected:
-                print(os.path.abspath(image.file_name))
+                print(image.abspath)
                 space = True
                 none_select = False
             else:
