@@ -420,7 +420,7 @@ class MainWindow(QtGui.QMainWindow):
             self.view.grid.addItem(image.picture, image.row, image.column)
 
 
-def pystamps(args=None):
+def pystamps(inlist=None):
     """Run pystamps from python shell or command line with arguments
 
     Examples
@@ -481,30 +481,19 @@ def pystamps(args=None):
     Because the images are ginga BaseImage objects you can access the BaseImage
     attributes
     """
-    try:
-        if len(args.file) > 0:
-            files = []
-            for arg in args.file:
-                if os.path.isdir(arg):
-                    files += glob(os.path.join(str(arg), '*'))
-                elif os.path.isfile(arg):
-                    files += glob(str(arg))
+    files = []
+    if isinstance(inlist, list):
+        if inlist:
+            for item in inlist:
+                files += arg_parser(item)
         else:
             files = glob('*')
-    except AttributeError:
-        files = []
-        if isinstance(args, list):
-            for arg in args:
-                files += arg_parser(arg)
-        elif isinstance(args, str):
-            if ',' in args:
-                names = args.split(',')
-                for name in names:
-                    files = files + arg_parser(name.strip())
-            else:
-                files = arg_parser(args)
-        else:
-            files = glob('*')
+    elif isinstance(inlist, str):
+        names = inlist.split(',')
+        for name in names:
+            files = files + arg_parser(name.strip())
+    elif inlist is None:
+        files = glob('*')
 
     image_set = ImageSet(files)
     display = MainWindow(image_set.images)
@@ -517,7 +506,7 @@ def pystamps(args=None):
 
 def arg_parser(args):
     if os.path.isdir(args):
-            files = glob(os.path.join('%s' % (args), '*'))
+        files = glob(os.path.join('%s' % (args), '*'))
     elif args:
         files = glob(args)
     else:
@@ -533,4 +522,4 @@ def cli():
         help="Input filename or glob for files with certain extensions"
         )
     args = parser.parse_args()
-    pystamps(args)
+    pystamps(args.file)
