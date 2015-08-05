@@ -55,7 +55,11 @@ class ImageStamp(BaseImage):
     Attributes
     ----------
     file_name : string
-        The filename of the image
+        The filename of the image given
+    abspath : string
+        The absolute path of given filename
+    basename : string
+        The name of image
     row : int
         The row the image is in
     column : int
@@ -64,6 +68,8 @@ class ImageStamp(BaseImage):
         A planetaryimage object
     position : tuple
         The grid position of the image
+    size : tuple
+        The size of the image (this will be the same for every image)
     selected : bool
         Indicate that the image is selected (True) or not (False)
     pds_compatible: bool
@@ -167,15 +173,15 @@ class ImageSetView(QtGui.QGraphicsView):
                 "QPushButton {background-color: transparent}")
 
             # Create the image
-            pds_view = ImageViewCanvas(render='widget')
-            pds_view.set_image(image)
-            pds_view.set_window_size(PSIZE, PSIZE)
-            pds_view.zoom_fit()
-            pds_view.set_bg(0, 0, 0)
-            pdsview_widget = pds_view.get_widget()
+            image.pds_view = ImageViewCanvas(render='widget')
+            image.pds_view.set_image(image)
+            image.pds_view.set_window_size(PSIZE, PSIZE)
+            image.pds_view.zoom_fit()
+            image.pds_view.set_bg(0, 0, 0)
+            image.pds_view.rotate(180)
+            pdsview_widget = image.pds_view.get_widget()
             pdsview_widget.setParent(image.button)
             pdsview_widget.resize(PSIZE, PSIZE)
-            pds_view.rotate(180)
 
             # Create image container to create border, set button as parent
             image.container = QtGui.QLabel()
@@ -222,6 +228,8 @@ class ImageSetView(QtGui.QGraphicsView):
         self.setScene(self.scene)
         self.setBackgroundBrush(QtCore.Qt.black)
         self.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
+        self.verticalScrollBar().valueChanged.connect(self.scroll_update)
+        self.horizontalScrollBar().valueChanged.connect(self.scroll_update)
 
     def select_image(self, position):
         """Updates the border indicating selected/not selected"""
@@ -241,6 +249,11 @@ class ImageSetView(QtGui.QGraphicsView):
                 image.selected = True
                 if image.file_name not in self.selected:
                     self.selected.append(image)
+
+    def scroll_update(self):
+        """Makes sure images look correct while/after scrolling"""
+        for image in self.images:
+            image.pds_view.update_canvas()
 
 
 class MainWindow(QtGui.QMainWindow):
@@ -408,7 +421,66 @@ class MainWindow(QtGui.QMainWindow):
 
 
 def pystamps(args=None):
-    """Run pystamps from python shell or command line with arguments"""
+    """Run pystamps from python shell or command line with arguments
+
+    Examples
+    --------
+
+    From the command line:
+
+    To view all images from current directory
+
+    pystamps
+
+    To view all images in a different directory
+
+    pystamps path/to/different/directory/
+
+    This is the same as:
+
+    pystamps path/to/different/directory/*
+
+    To view a specific image or types of images
+
+    pystamps 1p*img
+
+    To view images from multiple directories:
+
+    pystamps * path/to/other/directory/
+
+    From the (i)python command line:
+
+    >>> from pystamps.pystamps import pystamps
+    >>> pystamps()
+    Displays all of the images from current directory
+    >>> pystamps('path/to/different/directory')
+    Displays all of the images in the different directory
+    >>> pystamps ('1p*img')
+    Displays all of the images that follow the glob pattern
+    >>> pystamps ('a1.img, b*.img, example/path/x*img')
+    You can display multiple images, globs, and paths in one window by
+    separating each item by a command
+    >>> pystamps (['a1.img, b3.img, c1.img, d*img'])
+    You can also pass in a list of files/globs
+
+    You can also access attributes of the selected images after the window
+    is closed:
+
+    >>> from pystamps.pystamps import pystamps
+    >>> example = pystamps()
+    # Select some images
+    >>> example
+    [list, of, selected, images]
+    >>> example[#].attribute
+    return information stored in that attribute
+    # See ImageStamp for accessible attributes
+    >>> example[#].pds_image.pds_attribute
+    Access pds attributes
+    # See planetaryimage documentation on accessible pds_iamge attributes
+    >>> example[#].BaseImage_Attribute
+    Because the images are ginga BaseImage objects you can access the BaseImage
+    attributes
+    """
     try:
         if len(args.file) > 0:
             files = []
@@ -431,6 +503,8 @@ def pystamps(args=None):
                     files = files + arg_parser(name.strip())
             else:
                 files = arg_parser(args)
+        else:
+            files = glob('*')
 
     image_set = ImageSet(files)
     display = MainWindow(image_set.images)
