@@ -37,10 +37,10 @@ setup(
                  'pystamps'},
     include_package_data=True,
     install_requires=[
-        'numpy',
-        'Pillow',
-        'planetaryimage',
-        'PySide',
+        'ginga>=2.1',
+        'planetaryimage>=0.1.0',
+        'PySide>=1.2.0',
+        'astropy>=1.0.2'
     ],
     license="BSD",
     zip_safe=False,

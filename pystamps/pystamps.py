@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 
 import sys
-from PySide import QtGui, QtCore
-from PIL import ImageQt, Image
+from ginga.qtw.QtHelp import QtGui, QtCore
+from ginga.qtw.ImageViewCanvasQt import ImageViewCanvas
+from ginga.BaseImage import BaseImage
 import os
 from planetaryimage import PDS3Image
-import numpy
 from glob import glob
 import math
 import re
@@ -21,7 +21,6 @@ app = QtGui.QApplication.instance()
 if not app:
     app = QtGui.QApplication(sys.argv)
 
-
 # Create Global Constants
 # Dimensions
 SCREEN_WIDTH = QtGui.QDesktopWidget().availableGeometry().width()
@@ -31,17 +30,17 @@ PSIZE = FRAME_WIDTH / 4.
 
 # Styles
 NOT_SELECTED = (
-    "QLabel {background-color: black; border: 3px solid rgb(240, 198, 0)}"
+    "QLabel {color: transparent; border: 3px solid rgb(240, 198, 0)}"
                 )
 SELECTED = (
-    "QLabel {background-color: black; border: 3px solid rgb(255, 255, 255)}"
+    "QLabel {color: transparent; border: 3px solid rgb(255, 255, 255)}"
             )
 TOOLBAR = "QToolBar {background-color: gray}"
 TITLE_SELECTED = "QLabel{color: white; background-color: black}"
 TITLE_NOT_SELECTED = "QLabel{color: rgb(240, 198, 0); background-color: black}"
 
 
-class ImageStamp(object):
+class ImageStamp(BaseImage):
     """An image object that will be used to display the image in ImageSetView.
 
     Parameters
@@ -56,27 +55,40 @@ class ImageStamp(object):
     Attributes
     ----------
     file_name : string
-        The filename of the image
+        The filename of the image given
+    abspath : string
+        The absolute path of given filename
+    basename : string
+        The name of image
     row : int
         The row the image is in
     column : int
         The column the image is in
-    pdsimage : planetaryimage object
+    pds_image : planetaryimage object
         A planetaryimage object
     position : tuple
         The grid position of the image
+    size : tuple
+        The size of the image (this will be the same for every image)
     selected : bool
         Indicate that the image is selected (True) or not (False)
     pds_compatible: bool
         Indicates whether planetaryimage can open the file
     """
-    def __init__(self, filename, row, column):
+    def __init__(self, filename, row, column, data_np=None, metadata=None,
+                 logger=None):
+        BaseImage.__init__(self, data_np=data_np, metadata=metadata,
+                           logger=logger)
         self.file_name = filename
+        self.abspath = os.path.abspath(filename)
+        self.basename = os.path.basename(filename)
         self.row = row
         self.column = column
         try:
-            self.pdsimage = PDS3Image.open(filename)
+            self.pds_image = PDS3Image.open(filename)
+            self.set_data(self.pds_image.data)
             self.position = (row, column)
+            self.size = (PSIZE, PSIZE)
             self.selected = False
             self.pds_compatible = True
         except:
@@ -87,12 +99,12 @@ class ImageStamp(object):
 
 
 class ImageSet(object):
-    """A set of pds images to be displayed in Pystamps.
+    """A set of PDS images to be displayed in Pystamps.
 
     Parameters
     ----------
     filepaths: list
-        A list of filepaths to pass through ImageStamp
+        A list of file paths to pass through ImageStamp
 
     Attribute
     ---------
@@ -122,6 +134,7 @@ class ImageSet(object):
                 if column == 4:
                     row += 1
                     column = 0
+        self.selected = []
 
 
 class ImageSetView(QtGui.QGraphicsView):
@@ -140,11 +153,11 @@ class ImageSetView(QtGui.QGraphicsView):
         # Set Scene and Layout
         self.scene = QtGui.QGraphicsScene()
         self.grid = QtGui.QGraphicsGridLayout()
+        self.selected = []
 
         # Set Images in Grid
         for image in self.images:
-
-            # Create invisible button and signal to select iamge
+            # Create an invisible button and signal to select image
             image.button = QtGui.QPushButton(str(image.position))
             image.mapper = QtCore.QSignalMapper(self)
             image.mapper.setMapping(image.button, str(image.position))
@@ -157,33 +170,33 @@ class ImageSetView(QtGui.QGraphicsView):
                 self.select_image
                         )
             image.button.setStyleSheet(
-                "QPushButton {background-color: transparent}"
-                                        )
-            # Create pixmap image
-            data = image.pdsimage.data
-            normalize = (data - data.min()) * (255./(data.max() - data.min()))
-            convert_image = Image.fromarray(numpy.uint8(normalize), 'P')
-            qimage = ImageQt.ImageQt(convert_image)
-            pixmap_temp = QtGui.QPixmap.fromImage(qimage)
-            pixmap = pixmap_temp.scaled(
-                PSIZE, PSIZE, QtCore.Qt.KeepAspectRatio
-                                        )
+                "QPushButton {background-color: transparent}")
 
-            # Create container to place in grid, set button as parent
-            image.container = QtGui.QLabel(image.button)
-            image.container.setPixmap(pixmap)
+            # Create the image
+            image.pds_view = ImageViewCanvas(render='widget')
+            image.pds_view.set_image(image)
+            image.pds_view.set_window_size(PSIZE, PSIZE)
+            image.pds_view.zoom_fit()
+            image.pds_view.set_bg(0, 0, 0)
+            image.pds_view.rotate(180)
+            pdsview_widget = image.pds_view.get_widget()
+            pdsview_widget.setParent(image.button)
+            pdsview_widget.resize(PSIZE, PSIZE)
+
+            # Create image container to create border, set button as parent
+            image.container = QtGui.QLabel()
+            image.container.setParent(image.button)
             image.container.setStyleSheet(NOT_SELECTED)
             image.container.setFixedSize(PSIZE, PSIZE)
 
             # Make Title for each image as the file name, set button as parent
-            image.title = QtGui.QLabel(
-                os.path.basename(image.file_name), image.button)
+            image.title = QtGui.QLabel(image.basename, image.button)
             image.title.setFont(QtGui.QFont('Helvetica'))
             image.title.setStyleSheet(TITLE_NOT_SELECTED)
             image.title.setAlignment(QtCore.Qt.AlignTop)
             image.title.setFixedWidth(PSIZE)
 
-            # Set image button in proxy widget to add to grid.
+            # Set image button in proxy widget to add to graphics grid.
             # Because button is image's parent, adding button as image
             image.picture = QtGui.QGraphicsProxyWidget()
             image.picture.setWidget(image.button)
@@ -204,6 +217,7 @@ class ImageSetView(QtGui.QGraphicsView):
             self.grid.addItem(
                 image.picture, image.row, image.column)
             image.container.move(0, image.title.height())
+            pdsview_widget.move(0, image.title.height())
             image.title.setAlignment(QtCore.Qt.AlignCenter)
             self.grid.setMaximumWidth(PSIZE)
 
@@ -214,6 +228,8 @@ class ImageSetView(QtGui.QGraphicsView):
         self.setScene(self.scene)
         self.setBackgroundBrush(QtCore.Qt.black)
         self.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
+        self.verticalScrollBar().valueChanged.connect(self.scroll_update)
+        self.horizontalScrollBar().valueChanged.connect(self.scroll_update)
 
     def select_image(self, position):
         """Updates the border indicating selected/not selected"""
@@ -224,10 +240,20 @@ class ImageSetView(QtGui.QGraphicsView):
                 image.container.setStyleSheet(NOT_SELECTED)
                 image.title.setStyleSheet(TITLE_NOT_SELECTED)
                 image.selected = False
+                if image.file_name in self.selected:
+                    self.selected.remove(image)
+
             elif image.position == pos and not(image.selected):
                 image.container.setStyleSheet(SELECTED)
                 image.title.setStyleSheet(TITLE_SELECTED)
                 image.selected = True
+                if image.file_name not in self.selected:
+                    self.selected.append(image)
+
+    def scroll_update(self):
+        """Makes sure images look correct while/after scrolling"""
+        for image in self.images:
+            image.pds_view.update_canvas()
 
 
 class MainWindow(QtGui.QMainWindow):
@@ -243,11 +269,14 @@ class MainWindow(QtGui.QMainWindow):
         self.images = self.view.images
         self.main_window_set()
         self.selected_all_toggle = True
+        self.selected = self.view.selected
 
     def main_window_set(self):
-        """Create the main window of GUI with toolbars"""
-        min_frame_size = (FRAME_WIDTH + TOOL_BAR_WIDTH * 2. + 30,
-                          (PSIZE + TOOL_BAR_WIDTH) * 3)
+        """Create the main window of GUI with tool bars"""
+        min_frame_width = FRAME_WIDTH + TOOL_BAR_WIDTH * 2.
+        title_height = self.images[0].title.height()
+        min_frame_height = (PSIZE + title_height + TOOL_BAR_WIDTH) * 3
+        min_frame_size = (min_frame_width, min_frame_height)
 
         # Create select all tool bar button
         allAction = QtGui.QAction('&Select All/None', self)
@@ -287,17 +316,12 @@ class MainWindow(QtGui.QMainWindow):
         self.exit.setParent(self)
 
         # Display Window
-        self.resize(min_frame_size[0], min_frame_size[1])
         self.setWindowTitle('Pystamps')
         self.setCentralWidget(self.view)
+        self.resize(min_frame_size[0], min_frame_size[1])
         self.show()
 
-        # Set Bakcground to be black
-        palette = QtGui.QPalette()
-        palette.setColor(QtGui.QPalette.Background, QtCore.Qt.black)
-        self.setPalette(palette)
-
-        # Set window to appear in the cebter of the screen
+        # Set window to appear in the center of the screen
         qr = self.frameGeometry()
         cp = QtGui.QDesktopWidget().availableGeometry().center()
         qr.moveCenter(cp)
@@ -344,7 +368,7 @@ class MainWindow(QtGui.QMainWindow):
         none_select = True
         for image in self.images:
             if image.selected:
-                print(os.path.abspath(image.file_name))
+                print(image.abspath)
                 space = True
                 none_select = False
             else:
@@ -396,29 +420,98 @@ class MainWindow(QtGui.QMainWindow):
             self.view.grid.addItem(image.picture, image.row, image.column)
 
 
-def pystamps(args=None):
-    """Run pystamps from python shell or command line with arguments"""
-    try:
-        if len(args.file) > 1:
-            files = args.file
-        elif len(args.file) == 1:
-            if os.path.isdir(args.file[0]):
-                files = glob(os.path.join(str(args.file[0]), '*'))
-            elif os.path.isfile(args.file[0]):
-                files = glob(str(args.file[0]))
+def pystamps(inlist=None):
+    """Run pystamps from python shell or command line with arguments
+
+    Examples
+    --------
+
+    From the command line:
+
+    To view all images from current directory
+
+    pystamps
+
+    To view all images in a different directory
+
+    pystamps path/to/different/directory/
+
+    This is the same as:
+
+    pystamps path/to/different/directory/*
+
+    To view a specific image or types of images
+
+    pystamps 1p*img
+
+    To view images from multiple directories:
+
+    pystamps * path/to/other/directory/
+
+    From the (i)python command line:
+
+    >>> from pystamps.pystamps import pystamps
+    >>> pystamps()
+    Displays all of the images from current directory
+    >>> pystamps('path/to/different/directory')
+    Displays all of the images in the different directory
+    >>> pystamps ('1p*img')
+    Displays all of the images that follow the glob pattern
+    >>> pystamps ('a1.img, b*.img, example/path/x*img')
+    You can display multiple images, globs, and paths in one window by
+    separating each item by a command
+    >>> pystamps (['a1.img, b3.img, c1.img, d*img'])
+    You can also pass in a list of files/globs
+
+    You can also access attributes of the selected images after the window
+    is closed:
+
+    >>> from pystamps.pystamps import pystamps
+    >>> example = pystamps()
+    # Select some images
+    >>> example
+    [list, of, selected, images]
+    >>> example[#].attribute
+    return information stored in that attribute
+    # See ImageStamp for accessible attributes
+    >>> example[#].pds_image.pds_attribute
+    Access pds attributes
+    # See planetaryimage documentation on accessible pds_iamge attributes
+    >>> example[#].BaseImage_Attribute
+    Because the images are ginga BaseImage objects you can access the BaseImage
+    attributes
+    """
+    files = []
+    if isinstance(inlist, list):
+        if inlist:
+            for item in inlist:
+                files += arg_parser(item)
         else:
             files = glob('*')
-    except AttributeError:
-        if os.path.isdir(args):
-            files = glob(os.path.join('%s' % (args), '*'))
-        elif args:
-            files = glob(args)
-        else:
-            files = glob('*')
+    elif isinstance(inlist, str):
+        names = inlist.split(',')
+        for name in names:
+            files = files + arg_parser(name.strip())
+    elif inlist is None:
+        files = glob('*')
 
     image_set = ImageSet(files)
     display = MainWindow(image_set.images)
-    sys.exit(app.exec_())
+    try:
+        sys.exit(app.exec_())
+    except:
+        pass
+    return display.selected
+
+
+def arg_parser(args):
+    if os.path.isdir(args):
+        files = glob(os.path.join('%s' % (args), '*'))
+    elif args:
+        files = glob(args)
+    else:
+        files = glob('*')
+    return files
 
 
 def cli():
@@ -426,7 +519,7 @@ def cli():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         'file', nargs='*',
-        help="Input filename or glob for files with ceraint extensions"
+        help="Input filename or glob for files with certain extensions"
         )
     args = parser.parse_args()
-    pystamps(args)
+    pystamps(args.file)
