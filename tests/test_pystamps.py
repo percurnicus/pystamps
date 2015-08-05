@@ -173,10 +173,6 @@ def test_resize_wrap(qtbot):
     assert images[3].position == (0, 3)
     assert images[4].position == (0, 4)
     # Test items move to the right place after resizing window to be smaller
-    window.resize(window.width() - default_width/4, window.height())
-    assert images[0].position == (0, 0)
-    assert images[3].position == (0, 3)
-    assert images[4].position == (1, 0)
     window.resize(window.width() - 2 * (default_width/4), window.height())
     assert images[0].position == (0, 0)
     assert images[1].position == (0, 1)
