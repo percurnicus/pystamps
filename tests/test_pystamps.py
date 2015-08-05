@@ -163,6 +163,8 @@ def test_resize_wrap(qtbot):
     qtbot.addWidget(window)
     default_width = window.width()
     images = window.images
+    # Travis automatically resizes the window and then deletes the window so
+    # resizing cannot test on Travis
     if images[4].position == (0, 4):
         pass
     else:
