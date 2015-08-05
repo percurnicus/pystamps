@@ -164,7 +164,8 @@ def test_resize_wrap(qtbot):
     default_width = window.width()
     images = window.images
     if images[4].position == (0, 4):
-        sys.exit(0)
+        images[4].position = (1, 0)
+        images[5].position = (1, 1)
     # Test that items are correct before resize
     assert images[0].position == (0, 0)
     assert images[4].position == (1, 0)
