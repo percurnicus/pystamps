@@ -159,11 +159,8 @@ def test_select_all(qtbot):
     assert image_2.container.styleSheet() == NOT_SELECTED
 
 
-@pytest.mark.skipif(IMAGE_SET.images[4].position != (1, 0),
-                    reason="Travis repositions images so test fails on travis")
 def test_resize_wrap(qtbot):
     window = pystamps.MainWindow(IMAGE_SET.images)
-    qtbot.addWidget(window)
     default_width = window.width()
     images = window.images
     # Test that items are correct before resize
