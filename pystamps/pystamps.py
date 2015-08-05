@@ -80,6 +80,7 @@ class ImageStamp(BaseImage):
             self.pds_image = PDS3Image.open(filename)
             self.set_data(self.pds_image.data)
             self.position = (row, column)
+            self.size = (PSIZE, PSIZE)
             self.selected = False
             self.pds_compatible = True
         except:
@@ -173,6 +174,7 @@ class ImageSetView(QtGui.QGraphicsView):
             pdsview_widget.setParent(image.button)
             pdsview_widget.resize(PSIZE, PSIZE)
             pds_view.rotate(180)
+
 
             # Create image container to create border, set button as parent
             image.container = QtGui.QLabel()
