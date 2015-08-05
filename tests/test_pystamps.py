@@ -164,33 +164,31 @@ def test_resize_wrap(qtbot):
     default_width = window.width()
     images = window.images
     if images[4].position == (0, 4):
-        try:
-            sys.exit(0)
-        except:
-            pass
-    # Test that items are correct before resize
-    assert images[0].position == (0, 0)
-    assert images[4].position == (1, 0)
-    assert images[5].position == (1, 1)
-    # Test items move to the right place after resizing window to be larger
-    window.resize(default_width + default_width/4, window.height())
-    assert window.width() > default_width
-    assert images[0].position == (0, 0)
-    assert images[4].position == (0, 4)
-    assert images[5].position == (1, 0)
-    window.resize(window.width() + default_width/4, window.height())
-    assert images[0].position == (0, 0)
-    assert images[4].position == (0, 4)
-    assert images[5].position == (0, 5)
-    # Test items move to the right place after resizing window to be smaller
-    window.resize(window.width() - default_width/4, window.height())
-    assert images[0].position == (0, 0)
-    assert images[4].position == (0, 4)
-    assert images[5].position == (1, 0)
-    window.resize(window.width() - 3 * (default_width/4), window.height())
-    assert images[0].position == (0, 0)
-    assert images[1].position == (0, 1)
-    assert images[2].position == (1, 0)
-    assert images[3].position == (1, 1)
-    assert images[4].position == (2, 0)
-    assert images[5].position == (2, 1)
+        pass
+    else:
+        # Test that items are correct before resize
+        assert images[0].position == (0, 0)
+        assert images[4].position == (1, 0)
+        assert images[5].position == (1, 1)
+        # Test items move to the right place after resizing window to be larger
+        window.resize(default_width + default_width/4, window.height())
+        assert window.width() > default_width
+        assert images[0].position == (0, 0)
+        assert images[4].position == (0, 4)
+        assert images[5].position == (1, 0)
+        window.resize(window.width() + default_width/4, window.height())
+        assert images[0].position == (0, 0)
+        assert images[4].position == (0, 4)
+        assert images[5].position == (0, 5)
+        # Test items move to right place after resizing window to be smaller
+        window.resize(window.width() - default_width/4, window.height())
+        assert images[0].position == (0, 0)
+        assert images[4].position == (0, 4)
+        assert images[5].position == (1, 0)
+        window.resize(window.width() - 3 * (default_width/4), window.height())
+        assert images[0].position == (0, 0)
+        assert images[1].position == (0, 1)
+        assert images[2].position == (1, 0)
+        assert images[3].position == (1, 1)
+        assert images[4].position == (2, 0)
+        assert images[5].position == (2, 1)
