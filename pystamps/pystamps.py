@@ -178,7 +178,7 @@ class ImageSetView(QtGui.QGraphicsView):
             image.pds_view.set_window_size(PSIZE, PSIZE)
             image.pds_view.zoom_fit()
             image.pds_view.set_bg(0, 0, 0)
-            image.pds_view.rotate(180)
+            image.transform(False, True, False)
             pdsview_widget = image.pds_view.get_widget()
             pdsview_widget.setParent(image.button)
             pdsview_widget.resize(PSIZE, PSIZE)
