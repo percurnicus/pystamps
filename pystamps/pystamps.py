@@ -191,7 +191,7 @@ class ImageSetView(QtGui.QGraphicsView):
 
             # Make Title for each image as the file name, set button as parent
             image.title = QtGui.QLabel(image.basename, image.button)
-            image.title.setFont(QtGui.QFont('Helvetica'))
+            image.title.setFont(QtGui.QFont('Helvetica', 12))
             image.title.setStyleSheet(TITLE_NOT_SELECTED)
             image.title.setAlignment(QtCore.Qt.AlignTop)
             image.title.setFixedWidth(PSIZE)
@@ -205,7 +205,7 @@ class ImageSetView(QtGui.QGraphicsView):
             # Make image title fit in space by decreasing font size
             title_width = image.title.fontMetrics()
             title_width = title_width.boundingRect(image.title.text()).width()
-            font_size = 13
+            font_size = 12
             while title_width > PSIZE:
                 image.title.setFont(QtGui.QFont('Helvetica', font_size))
                 title_text = image.title.text()
@@ -274,7 +274,7 @@ class MainWindow(QtGui.QMainWindow):
     def main_window_set(self):
         """Create the main window of GUI with tool bars"""
         min_frame_width = FRAME_WIDTH + TOOL_BAR_WIDTH * 2.
-        title_height = self.images[0].title.height()
+        title_height = 13
         min_frame_height = (PSIZE + title_height + TOOL_BAR_WIDTH) * 3
         min_frame_size = (min_frame_width, min_frame_height)
 
