@@ -178,6 +178,8 @@ class ImageSetView(QtGui.QGraphicsView):
             image.pds_view.set_window_size(PSIZE, PSIZE)
             image.pds_view.zoom_fit()
             image.pds_view.set_bg(0, 0, 0)
+            # Flipping images. This may result in images being upside down.
+            # TODO Determine whether images need to be flipped
             image.pds_view.transform(False, True, False)
             pdsview_widget = image.pds_view.get_widget()
             pdsview_widget.setParent(image.button)
