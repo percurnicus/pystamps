@@ -40,15 +40,18 @@ Features
             * Displays single image or all images matching glob that are PDS
               compatible
 
-        * pystamps -d [directory]
-
-            * displays all images in given directory that are PDS compatible
     * pdsview
 
-        * There are still some bugs in pdsview and these are currently being
-          sorted out.
+        * Needs install first:
 
-* Upcoming features
+            * pip install pdsview
 
-    * Modify Quality Image Flags
 
+Install
+--------
+
+* git clone git@github.com:planetarypy/pystamps.git
+
+* pip install -r requirements.txt
+
+* pyside_postinstall.py -install
