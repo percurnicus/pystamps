@@ -62,8 +62,8 @@ Screen Shots
 
 Default view:
 
-.. image:: /screenshots/pystamps_sc_1.png
+.. image:: docs/screenshots/pystamps_sc_1.png
 
 Wrap Images and select images:
 
-.. image:: /screenshots/pystamps_sc_2.png
+.. image:: docs/screenshots/pystamps_sc_2.png
