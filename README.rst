@@ -2,33 +2,29 @@
 pystamps
 ===============================
 
-.. image:: https://img.shields.io/travis/pbvarga1/pystamps.svg
-        :target: https://travis-ci.org/pbvarga1/pystamps
+.. image:: https://travis-ci.org/planetarypy/pystamps.svg
+        :target: https://travis-ci.org/planetarypy/pystamps.svg
 
 .. image:: https://img.shields.io/pypi/v/pystamps.svg
         :target: https://pypi.python.org/pypi/pystamps
 
 
-pystamps is a PDS image thumbnail browser
+pystamps is a PDS image thumbnail browser.  It is alpha quality software and
+not affiliated with NASA.
 
 * Free software: BSD license
-* Documentation: https://pystamps.readthedocs.org.
 
 Features
 --------
 
-* This is a still a work in progress
+This is a still a work in progress and is alpha quality software.
 
 * Currently available features:
 
     * Display Images
-
     * Select Images
-
     * Print Image paths
-
     * Resize window and wrap images
-
     * Command Line arguments
 
         * pystamps
@@ -50,12 +46,11 @@ Features
 Install
 --------
 
-* git clone git@github.com:planetarypy/pystamps.git
-
-* pip install -r requirements.txt
-
-* pyside_postinstall.py -install
-
+```
+git clone git@github.com:planetarypy/pystamps.git
+pip install -r requirements.txt
+pyside_postinstall.py -install
+```
 
 Screen Shots
 ------------
