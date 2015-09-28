@@ -3,7 +3,7 @@ pystamps
 ===============================
 
 .. image:: https://travis-ci.org/planetarypy/pystamps.svg
-        :target: https://travis-ci.org/planetarypy/pystamps.svg
+        :target:https://travis-ci.org/planetarypy/pystamps
 
 .. image:: https://img.shields.io/pypi/v/pystamps.svg
         :target: https://pypi.python.org/pypi/pystamps
