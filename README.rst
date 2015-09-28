@@ -9,7 +9,7 @@ pystamps
         :target: https://pypi.python.org/pypi/pystamps
 
 
-pystamps is the python equivalnlent of mer_stamps in idl
+pystamps is a PDS image thumbnail browser
 
 * Free software: BSD license
 * Documentation: https://pystamps.readthedocs.org.
@@ -19,7 +19,7 @@ Features
 
 * This is a still a work in progress
 
-* Current available features:
+* Currently available features:
 
     * Display Images
 
@@ -33,14 +33,14 @@ Features
 
         * pystamps
 
-            * Displays all pds compatible images in current directory
+            * Displays all PDS compatible images in current directory
 
         * pystamps [filename or glob]
 
             * Displays single image or all images matching glob that are PDS
               compatible
 
-    * pdsview
+    * open in pdsview
 
         * Needs install first:
 
@@ -55,3 +55,15 @@ Install
 * pip install -r requirements.txt
 
 * pyside_postinstall.py -install
+
+
+Screen Shots
+------------
+
+Default view:
+
+.. image:: /screenshots/pystamps_sc_1.png
+
+Wrap Images and select images:
+
+.. image:: /screenshots/pystamps_sc_2.png
