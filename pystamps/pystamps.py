@@ -255,7 +255,7 @@ class ImageSetView(QtGui.QGraphicsView):
     def scroll_update(self):
         """Makes sure images look correct while/after scrolling"""
         for image in self.images:
-            image.pds_view.update_canvas()
+            image.pds_view.update_image()
 
 
 class MainWindow(QtGui.QMainWindow):
@@ -395,9 +395,9 @@ class MainWindow(QtGui.QMainWindow):
                     image.row = grid_row
                     image.column = grid_column
                     image.position = (grid_row, grid_column)
-                    self.wrap = True
+                    image.wrap = True
                 else:
-                    self.wrap = False
+                    image.wrap = False
                 grid_column += 1
                 if grid_column == column:
                     grid_row += 1
@@ -415,7 +415,7 @@ class MainWindow(QtGui.QMainWindow):
     def wrap_images(self, w):
         "Wrap images based on size event"
         image = self.images[w]
-        if self.wrap:
+        if image.wrap:
             image.button.setText(str(image.position))
             image.mapper.setMapping(image.button, str(image.position))
             image.picture.setWidget(image.button)
