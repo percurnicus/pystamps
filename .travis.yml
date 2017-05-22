@@ -29,7 +29,7 @@ install:
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION
   - source activate test-environment
   - pip install -r requirements.txt
-  - pip install pyqt
+  - pip install pyqt5
   - get_mission_data
 
 
