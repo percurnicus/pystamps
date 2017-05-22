@@ -163,8 +163,6 @@ class ImageSet(object):
                 if column == 4:
                     row += 1
                     column = 0
-            else:
-                print(image_stamp.basename)
         self.selected = []
 
 
