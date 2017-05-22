@@ -216,7 +216,7 @@ class ImageSetView(QtWidgets.QGraphicsView):
             title_width = title_width.boundingRect(image.title.text()).width()
             font_size = 12
             while title_width > PSIZE:
-                image.title.setFont(QtWidgets.QFont('Helvetica', font_size))
+                image.title.setFont(QtGui.QFont('Helvetica', font_size))
                 title_text = image.title.text()
                 title_width = image.title.fontMetrics()
                 title_width = title_width.boundingRect(title_text).width()
