@@ -3,8 +3,8 @@
 
 #Necessary Packages
 flake8
-pytest==2.7.2
-pytest-qt==1.5.0
+pytest
+pytest-qt
 planetary_test_data
 tox
 wheel==0.23.0
