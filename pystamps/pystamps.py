@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import sys
-from ginga.qtw.QtHelp import QtGui, QtCore
-from ginga.qtw.ImageViewCanvasQt import ImageViewCanvas
-from ginga.BaseImage import BaseImage
+from qtpy import QtWidgets, QtCore, QtGui
+from qtpy import QT_VERSION
+from matplotlib.figure import Figure
 import os
 from planetaryimage import PDS3Image
 from glob import glob
@@ -17,15 +17,21 @@ try:
 except:
     PDSVIEW_INSTALLED = False
 
-app = QtGui.QApplication.instance()
+qt_ver = int(QT_VERSION[0])
+if qt_ver == 4:
+    from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg
+elif qt_ver == 5:
+    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+
+app = QtWidgets.QApplication.instance()
 if not app:
-    app = QtGui.QApplication(sys.argv)
+    app = QtWidgets.QApplication(sys.argv)
 
 # Create Global Constants
 # Dimensions
-SCREEN_WIDTH = QtGui.QDesktopWidget().availableGeometry().width()
+SCREEN_WIDTH = QtWidgets.QDesktopWidget().availableGeometry().width()
 FRAME_WIDTH = math.sqrt(SCREEN_WIDTH ** 2. * 0.15)
-TOOL_BAR_WIDTH = QtGui.QToolBar().iconSize().width()
+TOOL_BAR_WIDTH = QtWidgets.QToolBar().iconSize().width()
 PSIZE = FRAME_WIDTH / 4.
 
 # Styles
@@ -40,7 +46,34 @@ TITLE_SELECTED = "QLabel{color: white; background-color: black}"
 TITLE_NOT_SELECTED = "QLabel{color: rgb(240, 198, 0); background-color: black}"
 
 
-class ImageStamp(BaseImage):
+class ImageButton(FigureCanvasQTAgg):
+
+    clicked = QtCore.Signal(tuple)
+
+    def __init__(self, image_stamp, parent=None):
+        self.parent = parent
+        self.image_stamp = image_stamp
+        fig = Figure(figsize=(1, 1))
+        fig.subplots_adjust(
+            left=0.0, right=1.0, top=1.0, bottom=0.0, wspace=0.0,
+            hspace=0.0)
+        super(ImageButton, self).__init__(fig)
+        # self.setAutoFillBackground(True)
+        # self.setStyleSheet("QWidget {alternate-background-color: black}")
+        self._figure = fig
+        self._ax = fig.add_subplot(111)
+        imgplot = self._ax.imshow(image_stamp.pds_image.image)
+        if image_stamp.pds_image.bands != 3:
+            imgplot.set_cmap('gray')
+        self._figure.set_facecolor('black')
+        self._ax.axis('off')
+        self.setFixedSize(PSIZE, PSIZE)
+
+    def mousePressEvent(self, event):
+        self.clicked.emit(self.image_stamp.position)
+
+
+class ImageStamp(object):
     """An image object that will be used to display the image in ImageSetView.
 
     Parameters
@@ -75,10 +108,7 @@ class ImageStamp(BaseImage):
     pds_compatible: bool
         Indicates whether planetaryimage can open the file
     """
-    def __init__(self, filename, row, column, data_np=None, metadata=None,
-                 logger=None):
-        BaseImage.__init__(self, data_np=data_np, metadata=metadata,
-                           logger=logger)
+    def __init__(self, filename, row, column):
         self.file_name = filename
         self.abspath = os.path.abspath(filename)
         self.basename = os.path.basename(filename)
@@ -86,7 +116,6 @@ class ImageStamp(BaseImage):
         self.column = column
         try:
             self.pds_image = PDS3Image.open(filename)
-            self.set_data(self.pds_image.data)
             self.position = (row, column)
             self.size = (PSIZE, PSIZE)
             self.selected = False
@@ -137,7 +166,7 @@ class ImageSet(object):
         self.selected = []
 
 
-class ImageSetView(QtGui.QGraphicsView):
+class ImageSetView(QtWidgets.QGraphicsView):
     """The scene and grid layout where the pictures are displayed
 
     Parameters
@@ -151,48 +180,23 @@ class ImageSetView(QtGui.QGraphicsView):
         self.images = image_list
 
         # Set Scene and Layout
-        self.scene = QtGui.QGraphicsScene()
-        self.grid = QtGui.QGraphicsGridLayout()
+        self.scene = QtWidgets.QGraphicsScene()
+        self.grid = QtWidgets.QGraphicsGridLayout()
         self.selected = []
 
         # Set Images in Grid
         for image in self.images:
             # Create an invisible button and signal to select image
-            image.button = QtGui.QPushButton(str(image.position))
-            image.mapper = QtCore.QSignalMapper(self)
-            image.mapper.setMapping(image.button, str(image.position))
-            self.connect(
-                image.button, QtCore.SIGNAL('clicked()'), image.mapper,
-                QtCore.SLOT("map()")
-                        )
-            self.connect(
-                image.mapper, QtCore.SIGNAL("mapped(const QString &)"),
-                self.select_image
-                        )
-            image.button.setStyleSheet(
-                "QPushButton {background-color: transparent}")
-
-            # Create the image
-            image.pds_view = ImageViewCanvas(render='widget')
-            image.pds_view.set_image(image)
-            image.pds_view.set_window_size(PSIZE, PSIZE)
-            image.pds_view.zoom_fit()
-            image.pds_view.set_bg(0, 0, 0)
-            # Flipping images. This may result in images being upside down.
-            # TODO Determine whether images need to be flipped
-            image.pds_view.transform(False, True, False)
-            pdsview_widget = image.pds_view.get_widget()
-            pdsview_widget.setParent(image.button)
-            pdsview_widget.resize(PSIZE, PSIZE)
+            image.button = ImageButton(image)
+            image.button.clicked.connect(self.select_image)
 
             # Create image container to create border, set button as parent
-            image.container = QtGui.QLabel()
+            image.container = QtWidgets.QLabel()
             image.container.setParent(image.button)
             image.container.setStyleSheet(NOT_SELECTED)
-            image.container.setFixedSize(PSIZE, PSIZE)
 
             # Make Title for each image as the file name, set button as parent
-            image.title = QtGui.QLabel(image.basename, image.button)
+            image.title = QtWidgets.QLabel(image.basename, image.button)
             image.title.setFont(QtGui.QFont('Helvetica', 12))
             image.title.setStyleSheet(TITLE_NOT_SELECTED)
             image.title.setAlignment(QtCore.Qt.AlignTop)
@@ -200,9 +204,10 @@ class ImageSetView(QtGui.QGraphicsView):
 
             # Set image button in proxy widget to add to graphics grid.
             # Because button is image's parent, adding button as image
-            image.picture = QtGui.QGraphicsProxyWidget()
+            image.picture = QtWidgets.QGraphicsProxyWidget()
             image.picture.setWidget(image.button)
-            image.picture.setMinimumSize(PSIZE, PSIZE + image.title.height())
+            image.picture.setMinimumSize(PSIZE, PSIZE)
+            image.picture.setPalette(QtGui.QPalette(QtCore.Qt.black))
 
             # Make image title fit in space by decreasing font size
             title_width = image.title.fontMetrics()
@@ -215,16 +220,19 @@ class ImageSetView(QtGui.QGraphicsView):
                 title_width = title_width.boundingRect(title_text).width()
                 font_size -= 1
 
+            image.button.resize(PSIZE, PSIZE)
+
             # Add picture to grid, move image/button down so room for title
             self.grid.addItem(
                 image.picture, image.row, image.column)
             image.container.move(0, image.title.height())
-            pdsview_widget.move(0, image.title.height())
+            # image.button.move(0, image.title.height())
             image.title.setAlignment(QtCore.Qt.AlignCenter)
             self.grid.setMaximumWidth(PSIZE)
+            image.container.setFixedSize(PSIZE, PSIZE - image.title.height())
 
         # Set grid in view and MainWindow
-        layout_container = QtGui.QGraphicsWidget()
+        layout_container = QtWidgets.QGraphicsWidget()
         layout_container.setLayout(self.grid)
         self.scene.addItem(layout_container)
         self.setScene(self.scene)
@@ -233,10 +241,8 @@ class ImageSetView(QtGui.QGraphicsView):
         self.verticalScrollBar().valueChanged.connect(self.scroll_update)
         self.horizontalScrollBar().valueChanged.connect(self.scroll_update)
 
-    def select_image(self, position):
+    def select_image(self, pos=None):
         """Updates the border indicating selected/not selected"""
-        find_pos = re.findall(r'\d+', position)
-        pos = (int(find_pos[0]), int(find_pos[1]))
         for image in self.images:
             if image.position == pos and image.selected:
                 image.container.setStyleSheet(NOT_SELECTED)
@@ -254,11 +260,10 @@ class ImageSetView(QtGui.QGraphicsView):
 
     def scroll_update(self):
         """Makes sure images look correct while/after scrolling"""
-        for image in self.images:
-            image.pds_view.update_image()
+        pass
 
 
-class MainWindow(QtGui.QMainWindow):
+class MainWindow(QtWidgets.QMainWindow):
     """Holds the tool bars and their actions
     Parameters
     ----------
@@ -281,7 +286,7 @@ class MainWindow(QtGui.QMainWindow):
         min_frame_size = (min_frame_width, min_frame_height)
 
         # Create select all tool bar button
-        allAction = QtGui.QAction('&Select All/None', self)
+        allAction = QtWidgets.QAction('&Select All/None', self)
         allAction.triggered.connect(self.select_all)
         self.selectAll = self.addToolBar('Select All/None')
         self.selectAll.addAction(allAction)
@@ -289,9 +294,9 @@ class MainWindow(QtGui.QMainWindow):
         self.selectAll.setParent(self)
 
         # Create a open in pdsview tool bar button
-        viewAction = QtGui.QAction('&Open Selected in pdsview', self)
+        viewAction = QtWidgets.QAction('&Open Selected in pdsview', self)
         viewAction.triggered.connect(self.open_pdsview)
-        not_installed = QtGui.QAction('&Open Selected in pdsview', self)
+        not_installed = QtWidgets.QAction('&Open Selected in pdsview', self)
         not_installed.triggered.connect(self.pdsview_not_installed_window)
         self.image_pdsview = self.addToolBar('Open Selected in pdsview')
         if PDSVIEW_INSTALLED:
@@ -302,7 +307,7 @@ class MainWindow(QtGui.QMainWindow):
         self.image_pdsview.setParent(self)
 
         # Create a print select images tool bar button
-        printAction = QtGui.QAction('&Print Selected Filenames', self)
+        printAction = QtWidgets.QAction('&Print Selected Filenames', self)
         printAction.triggered.connect(self.print_file)
         self.print_image_path = self.addToolBar('Print Selected Filenames')
         self.print_image_path.addAction(printAction)
@@ -310,7 +315,7 @@ class MainWindow(QtGui.QMainWindow):
         self.print_image_path.setParent(self)
 
         # Create an close tool bar button
-        exitAction = QtGui.QAction('&Close', self)
+        exitAction = QtWidgets.QAction('&Close', self)
         exitAction.triggered.connect(self.close)
         self.exit = self.addToolBar('Close')
         self.exit.addAction(exitAction)
@@ -325,7 +330,7 @@ class MainWindow(QtGui.QMainWindow):
 
         # Set window to appear in the center of the screen
         qr = self.frameGeometry()
-        cp = QtGui.QDesktopWidget().availableGeometry().center()
+        cp = QtWidgets.QDesktopWidget().availableGeometry().center()
         qr.moveCenter(cp)
         self.move(qr.topLeft())
 
@@ -334,12 +339,12 @@ class MainWindow(QtGui.QMainWindow):
         if self.selected_all_toggle:
             for image in self.images:
                 image.selected = False
-                self.view.select_image(str(image.position))
+                self.view.select_image(image.position)
                 self.selected_all_toggle = False
         else:
             for image in self.images:
                 image.selected = True
-                self.view.select_image(str(image.position))
+                self.view.select_image(image.position)
                 self.selected_all_toggle = True
 
     def open_pdsview(self):
@@ -360,7 +365,7 @@ class MainWindow(QtGui.QMainWindow):
         """A Message box appears explaining that pdsview is not installed"""
         # There is a bug in QMessageBox right now and prints an error message
         # This does not cause the program to crash so not to worry
-        QtGui.QMessageBox.information(
+        QtWidgets.QMessageBox.information(
             self, 'pdsview', "pdsview is not installed"
             )
 
@@ -416,8 +421,8 @@ class MainWindow(QtGui.QMainWindow):
         "Wrap images based on size event"
         image = self.images[w]
         if image.wrap:
-            image.button.setText(str(image.position))
-            image.mapper.setMapping(image.button, str(image.position))
+            # image.button.setText(str(image.position))
+            # image.mapper.setMapping(image.button, str(image.position))
             image.picture.setWidget(image.button)
             self.view.grid.addItem(image.picture, image.row, image.column)
 
