@@ -49,8 +49,9 @@ Install
 ```
 git clone git@github.com:planetarypy/pystamps.git
 pip install -r requirements.txt
-pyside_postinstall.py -install
 ```
+
+You must also install PySide, PyQt4, or PyQt5 (PyQt5 recommended)
 
 Screen Shots
 ------------
