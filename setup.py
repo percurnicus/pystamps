@@ -37,10 +37,9 @@ setup(
                  'pystamps'},
     include_package_data=True,
     install_requires=[
-        'ginga>=2.1',
-        'planetaryimage>=0.1.0',
-        'PySide>=1.2.0',
-        'astropy>=1.0.2'
+        'ginga>=2.6.0',
+        'planetaryimage>=0.5.0',
+        'matplotlib>=1.5.1'
     ],
     license="BSD",
     zip_safe=False,
