@@ -35,38 +35,118 @@ FILE_6 = os.path.join(
     'tests', 'mission_data', 'h58n3118.img')
 FILE_7 = os.path.join(
     'tests', 'mission_data', '0047MH0000110010100214C00_DRCL.IMG')
-NOT_SELECTED = (
-    "QLabel {color: transparent; border: 3px solid rgb(240, 198, 0)}"
-                )
-SELECTED = (
-    "QLabel {color: transparent; border: 3px solid rgb(255, 255, 255)}"
-            )
 TEST_DIR = [FILE_1, FILE_2, FILE_3, FILE_4, FILE_5, FILE_6, FILE_7]
-IMAGE_SET = pystamps.ImageSet(TEST_DIR)
 
 
 class TestImageStamp(object):
 
+    stamp1 = pystamps.ImageStamp(FILE_2, 0, 1)
+    stamp2 = pystamps.ImageStamp(FILE_7, 10, 342)
+
     def test_ImageStamp_1(self):
-        stamp = pystamps.ImageStamp(FILE_2, 0, 1)
+        stamp = self.stamp1
         assert stamp.file_name == FILE_2
         assert stamp.row == 0
         assert stamp.column == 1
-        assert not stamp.selected
+        assert not stamp._selected
         assert stamp.pds_compatible
         assert stamp.basename == os.path.basename(FILE_2)
         assert stamp.abspath == os.path.abspath(FILE_2)
+        assert isinstance(stamp.button, pystamps.ImageButton)
+        assert isinstance(stamp.container, QtWidgets.QLabel)
+        assert isinstance(stamp.title, QtWidgets.QLabel)
+        assert isinstance(stamp.proxy_widget, QtWidgets.QGraphicsProxyWidget)
 
     def test_ImageStamp_2(self):
-        stamp = pystamps.ImageStamp(FILE_7, 10, 342)
+        stamp = self.stamp2
         assert stamp.file_name == FILE_7
         assert stamp.row == 10
         assert stamp.column == 342
         assert not stamp.pds_compatible
-        assert not stamp.selected
+        assert not stamp._selected
         assert stamp.pds_image is None
         assert stamp.basename == os.path.basename(FILE_7)
         assert stamp.abspath == os.path.abspath(FILE_7)
+        assert stamp.button is None
+        assert stamp.container is None
+        assert stamp.title is None
+        assert stamp.proxy_widget is None
+
+    def test_display_selected(self):
+        stamp = self.stamp1
+        assert stamp.container.styleSheet() == pystamps.NOT_SELECTED
+        assert stamp.title.styleSheet() == pystamps.TITLE_NOT_SELECTED
+        stamp.display_selected()
+        assert stamp.container.styleSheet() == pystamps.SELECTED
+        assert stamp.title.styleSheet() == pystamps.TITLE_SELECTED
+        stamp.container.setStyleSheet(pystamps.NOT_SELECTED)
+        stamp.title.setStyleSheet(pystamps.TITLE_NOT_SELECTED)
+        assert stamp.container.styleSheet() == pystamps.NOT_SELECTED
+        assert stamp.title.styleSheet() == pystamps.TITLE_NOT_SELECTED
+
+        with pytest.raises(RuntimeError):
+            self.stamp2.display_selected()
+
+    def test_display_not_selected(self):
+        stamp = self.stamp1
+        stamp.container.setStyleSheet(pystamps.SELECTED)
+        stamp.title.setStyleSheet(pystamps.TITLE_SELECTED)
+        assert stamp.container.styleSheet() == pystamps.SELECTED
+        assert stamp.title.styleSheet() == pystamps.TITLE_SELECTED
+        stamp.display_not_selected()
+        assert stamp.container.styleSheet() == pystamps.NOT_SELECTED
+        assert stamp.title.styleSheet() == pystamps.TITLE_NOT_SELECTED
+
+        with pytest.raises(RuntimeError):
+            self.stamp2.display_not_selected()
+
+    def test_selected(self):
+        stamp = self.stamp1
+        assert stamp.selected == stamp._selected
+        assert not stamp.selected
+        assert stamp.container.styleSheet() == pystamps.NOT_SELECTED
+        assert stamp.title.styleSheet() == pystamps.TITLE_NOT_SELECTED
+        stamp.selected = True
+        assert stamp.container.styleSheet() == pystamps.SELECTED
+        assert stamp.title.styleSheet() == pystamps.TITLE_SELECTED
+        stamp.selected = False
+        assert stamp.container.styleSheet() == pystamps.NOT_SELECTED
+        assert stamp.title.styleSheet() == pystamps.TITLE_NOT_SELECTED
+
+    def test_create_button(self):
+        stamp = self.stamp1
+        stamp._create_button()
+        assert isinstance(stamp.button, pystamps.ImageButton)
+        assert isinstance(stamp.container, QtWidgets.QLabel)
+        assert stamp.container.parent() == stamp.button
+        assert stamp.container.styleSheet() == pystamps.NOT_SELECTED
+
+        with pytest.raises(RuntimeError):
+            self.stamp2._create_button()
+
+    def test_create_title(self):
+        stamp = self.stamp1
+        stamp._create_title()
+        assert isinstance(stamp.title, QtWidgets.QLabel)
+        assert stamp.title.styleSheet() == pystamps.TITLE_NOT_SELECTED
+        assert stamp.title.parent() == stamp.button
+        assert stamp.title.font().family() == 'Helvetica'
+        title_text = stamp.title.text()
+        title_metrics = stamp.title.fontMetrics()
+        title_width = title_metrics.boundingRect(title_text).width()
+        assert title_width <= pystamps.PSIZE
+
+        with pytest.raises(RuntimeError):
+            self.stamp2._create_title()
+
+    def test_create_proxy_widget(self):
+        stamp = self.stamp1
+        stamp._create_proxy_widget()
+        assert isinstance(stamp.proxy_widget, QtWidgets.QGraphicsProxyWidget)
+        assert stamp.proxy_widget.widget() == stamp.button
+
+        with pytest.raises(RuntimeError):
+            self.stamp2._create_proxy_widget()
 
 
 class TestImageSet(object):
@@ -241,28 +321,6 @@ class TestImageSetView(object):
         assert self.view.layout_container in self.view.scene().items()
         assert self.view.backgroundBrush() == QtCore.Qt.black
 
-    def test_display_selected(self, qtbot):
-        image1 = self.image_set.images[0]
-        assert image1.container.styleSheet() == pystamps.NOT_SELECTED
-        assert image1.title.styleSheet() == pystamps.TITLE_NOT_SELECTED
-        self.view.display_selected(image1)
-        assert image1.container.styleSheet() == pystamps.SELECTED
-        assert image1.title.styleSheet() == pystamps.TITLE_SELECTED
-        image1.container.setStyleSheet(pystamps.NOT_SELECTED)
-        image1.title.setStyleSheet(pystamps.TITLE_NOT_SELECTED)
-        assert image1.container.styleSheet() == pystamps.NOT_SELECTED
-        assert image1.title.styleSheet() == pystamps.TITLE_NOT_SELECTED
-
-    def test_display_not_selected(self):
-        image1 = self.image_set.images[0]
-        image1.container.setStyleSheet(pystamps.SELECTED)
-        image1.title.setStyleSheet(pystamps.TITLE_SELECTED)
-        assert image1.container.styleSheet() == pystamps.SELECTED
-        assert image1.title.styleSheet() == pystamps.TITLE_SELECTED
-        self.view.display_not_selected(image1)
-        assert image1.container.styleSheet() == pystamps.NOT_SELECTED
-        assert image1.title.styleSheet() == pystamps.TITLE_NOT_SELECTED
-
     def test_select_image(self, qtbot):
         self.view.show()
         qtbot.addWidget(self.view)
@@ -315,7 +373,7 @@ class TestImageSetView(object):
         def check_grid(positions):
             for pos, image in zip(positions, self.image_set.images):
                 row, col = pos
-                assert self.view.grid.itemAt(row, col) == image.picture
+                assert self.view.grid.itemAt(row, col) == image.proxy_widget
         check_grid([(0, 0), (0, 1), (0, 2), (0, 3), (1, 0)])
         # wrap_images will eventually call set_grid_layout
         self.view.controller.wrap_images(3)

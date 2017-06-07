@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import sys
+from functools import wraps
 from qtpy import QtWidgets, QtCore, QtGui
 from qtpy import QT_VERSION
 from matplotlib.figure import Figure
@@ -37,10 +38,10 @@ PSIZE = FRAME_WIDTH / 4.
 # Styles
 NOT_SELECTED = (
     "QLabel {color: transparent; border: 3px solid rgb(240, 198, 0)}"
-                )
+)
 SELECTED = (
     "QLabel {color: transparent; border: 3px solid rgb(255, 255, 255)}"
-            )
+)
 TOOLBAR = "QToolBar {background-color: gray}"
 TITLE_SELECTED = "QLabel{color: white; background-color: black}"
 TITLE_NOT_SELECTED = "QLabel{color: rgb(240, 198, 0); background-color: black}"
@@ -88,13 +89,96 @@ class ImageStamp(object):
         self.basename = os.path.basename(file_name)
         self.row = row
         self.column = column
-        self.selected = False
+        self._selected = False
+        self.button = None
+        self.container = None
+        self.title = None
+        self.proxy_widget = None
         try:
             self.pds_image = PDS3Image.open(file_name)
             self.pds_compatible = True
         except Exception:
             self.pds_image = None
             self.pds_compatible = False
+
+        if self.pds_compatible:
+            self._create_button()
+            self._create_title()
+            self._create_proxy_widget()
+
+    def __must_be_pds_compatible(func):
+        @wraps(func)
+        def wrapper(self):
+            if not self.pds_compatible:
+                raise RuntimeError("Image not pds compatible")
+            return func(self)
+        return wrapper
+
+    @__must_be_pds_compatible
+    def display_selected(self):
+        """Change the border to white"""
+        self.container.setStyleSheet(SELECTED)
+        self.title.setStyleSheet(TITLE_SELECTED)
+
+    @__must_be_pds_compatible
+    def display_not_selected(self):
+        """Change the border yellow"""
+        self.container.setStyleSheet(NOT_SELECTED)
+        self.title.setStyleSheet(TITLE_NOT_SELECTED)
+
+    @property
+    def selected(self):
+        return self._selected
+
+    @selected.setter
+    def selected(self, selected_state):
+        state_changed = self._selected != selected_state
+        if not state_changed:
+            return
+        self._selected = selected_state
+        if self._selected and self.pds_compatible:
+            self.display_selected()
+        elif not self._selected and self.pds_compatible:
+            self.display_not_selected()
+
+    @__must_be_pds_compatible
+    def _create_button(self):
+        """Create the button and set in the container"""
+        self.button = ImageButton(self)
+
+        # Create image container to create border, set button as parent
+        self.container = QtWidgets.QLabel()
+        self.container.setParent(self.button)
+        self.container.setStyleSheet(NOT_SELECTED)
+
+    @__must_be_pds_compatible
+    def _create_title(self):
+        """Create images title"""
+        # Make Title for each image as the file name, set button as parent
+        self.title = QtWidgets.QLabel(self.basename, self.button)
+        self.title.setFont(QtGui.QFont('Helvetica', 12))
+        self.title.setStyleSheet(TITLE_NOT_SELECTED)
+        self.title.setAlignment(QtCore.Qt.AlignTop)
+        self.title.setFixedWidth(PSIZE)
+
+        # Make image title fit in space by decreasing font size
+        title_metrics = self.title.fontMetrics()
+        title_width = title_metrics.boundingRect(self.title.text()).width()
+        font_size = 12
+        while title_width > PSIZE:
+            self.title.setFont(QtGui.QFont('Helvetica', font_size))
+            title_text = self.title.text()
+            title_metrics = self.title.fontMetrics()
+            title_width = title_metrics.boundingRect(title_text).width()
+            font_size -= 1
+
+    @__must_be_pds_compatible
+    def _create_proxy_widget(self):
+        """Set image button in proxy widget to add to graphics grid"""
+        self.proxy_widget = QtWidgets.QGraphicsProxyWidget()
+        self.proxy_widget.setWidget(self.button)
+        self.proxy_widget.setMinimumSize(PSIZE, PSIZE)
+        self.proxy_widget.setPalette(QtGui.QPalette(QtCore.Qt.black))
 
     def __repr__(self):
         return self.file_name
@@ -155,16 +239,16 @@ class ImageSet(object):
         image.selected = True
         if image not in self.selected_images:
             self.selected_images.append(image)
-        for view in self._views:
-            view.display_selected(image)
+        # for view in self._views:
+        #     view.display_selected(image)
 
     def set_image_not_selected(self, image):
         """Set image as not selected, remove from list, display unselection"""
         image.selected = False
         if image in self.selected_images:
             self.selected_images.remove(image)
-        for view in self._views:
-            view.display_not_selected(image)
+        # for view in self._views:
+        #     view.display_not_selected(image)
 
     def set_images_positions(self):
         """Assign the positions based on columns and display in grid"""
@@ -240,8 +324,6 @@ class ImageButton(FigureCanvasQTAgg):
             left=0.0, right=1.0, top=1.0, bottom=0.0, wspace=0.0,
             hspace=0.0)
         super(ImageButton, self).__init__(fig)
-        # self.setAutoFillBackground(True)
-        # self.setStyleSheet("QWidget {alternate-background-color: black}")
         self._figure = fig
         self._ax = fig.add_subplot(111)
         if len(image_stamp.pds_image.image.shape) == 1:
@@ -281,45 +363,10 @@ class ImageSetView(QtWidgets.QGraphicsView):
         self.grid = QtWidgets.QGraphicsGridLayout()
         self.grid.setMaximumWidth(PSIZE)
 
-        # Set Images in Grid
         for image in self.images:
-            # Create an invisible button and signal to select image
-            image.button = ImageButton(image)
             image.button.clicked.connect(self.select_image)
-
-            # Create image container to create border, set button as parent
-            image.container = QtWidgets.QLabel()
-            image.container.setParent(image.button)
-            image.container.setStyleSheet(NOT_SELECTED)
-
-            # Make Title for each image as the file name, set button as parent
-            image.title = QtWidgets.QLabel(image.basename, image.button)
-            image.title.setFont(QtGui.QFont('Helvetica', 12))
-            image.title.setStyleSheet(TITLE_NOT_SELECTED)
-            image.title.setAlignment(QtCore.Qt.AlignTop)
-            image.title.setFixedWidth(PSIZE)
-
-            # Set image button in proxy widget to add to graphics grid.
-            # Because button is image's parent, adding button as image
-            image.picture = QtWidgets.QGraphicsProxyWidget()
-            image.picture.setWidget(image.button)
-            image.picture.setMinimumSize(PSIZE, PSIZE)
-            image.picture.setPalette(QtGui.QPalette(QtCore.Qt.black))
-
-            # Make image title fit in space by decreasing font size
-            title_width = image.title.fontMetrics()
-            title_width = title_width.boundingRect(image.title.text()).width()
-            font_size = 12
-            while title_width > PSIZE:
-                image.title.setFont(QtGui.QFont('Helvetica', font_size))
-                title_text = image.title.text()
-                title_width = image.title.fontMetrics()
-                title_width = title_width.boundingRect(title_text).width()
-                font_size -= 1
-
-            # Add picture to grid, move image/button down so room for title
             self.grid.addItem(
-                image.picture, image.row, image.column)
+                image.proxy_widget, image.row, image.column)
             image.container.move(0, image.title.height())
             image.title.setAlignment(QtCore.Qt.AlignCenter)
             image.container.setFixedSize(PSIZE, PSIZE - image.title.height())
@@ -335,27 +382,19 @@ class ImageSetView(QtWidgets.QGraphicsView):
     def set_grid_layout(self):
         self.grid = QtWidgets.QGraphicsGridLayout()
         for image in self.images:
-            self.grid.addItem(image.picture, image.row, image.column)
+            self.grid.addItem(image.proxy_widget, image.row, image.column)
         self.layout_container.setLayout(self.grid)
 
     def select_image(self, image_stamp):
         """Updates the border indicating selected/not selected"""
         self.controller.select_image(image_stamp)
 
-    def display_selected(self, image):
-        image.container.setStyleSheet(SELECTED)
-        image.title.setStyleSheet(TITLE_SELECTED)
-
-    def display_not_selected(self, image):
-        image.container.setStyleSheet(NOT_SELECTED)
-        image.title.setStyleSheet(TITLE_NOT_SELECTED)
-
 
 class MainWindow(QtWidgets.QMainWindow):
     """Holds the tool bars and their actions
     Parameters
     ----------
-    image_list: ImageSet
+    image_set: ImageSet
     """
 
     def __init__(self, image_set):
