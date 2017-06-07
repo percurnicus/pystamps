@@ -1,21 +1,22 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import sys
-from functools import wraps
-from qtpy import QtWidgets, QtCore, QtGui
-from qtpy import QT_VERSION
-from matplotlib.figure import Figure
 import os
-from planetaryimage import PDS3Image
-from glob import glob
+import sys
 import math
-import re
 import argparse
+from glob import glob
+from functools import wraps
+
+from qtpy import QT_VERSION
+from planetaryimage import PDS3Image
+from matplotlib.figure import Figure
+from qtpy import QtWidgets, QtCore, QtGui
+
 try:
     from pdsview import pdsview
     PDSVIEW_INSTALLED = True
-except:
+except ImportError:
     PDSVIEW_INSTALLED = False
 
 qt_ver = int(QT_VERSION[0])
@@ -568,9 +569,6 @@ def pystamps(inlist=None):
     >>> example[#].pds_image.pds_attribute
     Access pds attributes
     # See planetaryimage documentation on accessible pds_iamge attributes
-    >>> example[#].BaseImage_Attribute
-    Because the images are ginga BaseImage objects you can access the BaseImage
-    attributes
     """
     files = []
     if isinstance(inlist, list):
@@ -590,7 +588,7 @@ def pystamps(inlist=None):
     display = MainWindow(image_set)
     try:
         sys.exit(app.exec_())
-    except:
+    except Exception:
         pass
     return display.selected
 

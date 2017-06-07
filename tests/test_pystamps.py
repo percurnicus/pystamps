@@ -8,13 +8,13 @@ test_pystamps
 Tests for `pystamps` module.
 """
 
+import os
+from functools import wraps
+
+import pytest
+from qtpy import QtWidgets, QtCore
 
 from pystamps import pystamps
-from qtpy import QtWidgets, QtCore
-import os
-import sys
-import pytest
-from functools import wraps
 
 
 # app = QtWidgets.QApplication.instance()
