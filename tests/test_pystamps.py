@@ -1,13 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""
-test_pystamps
-----------------------------------
-
-Tests for `pystamps` module.
-"""
-
 import os
 from functools import wraps
 
@@ -15,11 +8,6 @@ import pytest
 from qtpy import QtWidgets, QtCore
 
 from pystamps import pystamps
-
-
-# app = QtWidgets.QApplication.instance()
-# if not app:
-#     app = QtWidgets.QApplication(sys.argv)
 
 FILE_1 = os.path.join(
     'tests', 'mission_data', '2m132591087cfd1800p2977m2f1.img')

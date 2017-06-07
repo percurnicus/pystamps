@@ -201,7 +201,7 @@ class ImageSet(object):
     columns : int
         Number of columns the grid layout has
     selected_images : list
-        List of ImageStamp that are selcted
+        List of ImageStamp that are selected
     """
     def __init__(self, filepaths):
         self._views = set()
