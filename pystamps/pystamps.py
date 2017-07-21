@@ -1,20 +1,22 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import sys
-from qtpy import QtWidgets, QtCore, QtGui
-from qtpy import QT_VERSION
-from matplotlib.figure import Figure
 import os
-from planetaryimage import PDS3Image
-from glob import glob
+import sys
 import math
-import re
 import argparse
+from glob import glob
+from functools import wraps
+
+from qtpy import QT_VERSION
+from planetaryimage import PDS3Image
+from matplotlib.figure import Figure
+from qtpy import QtWidgets, QtCore, QtGui
+
 try:
     from pdsview import pdsview
     PDSVIEW_INSTALLED = True
-except:
+except ImportError:
     PDSVIEW_INSTALLED = False
 
 qt_ver = int(QT_VERSION[0])
@@ -37,40 +39,13 @@ PSIZE = FRAME_WIDTH / 4.
 # Styles
 NOT_SELECTED = (
     "QLabel {color: transparent; border: 3px solid rgb(240, 198, 0)}"
-                )
+)
 SELECTED = (
     "QLabel {color: transparent; border: 3px solid rgb(255, 255, 255)}"
-            )
+)
 TOOLBAR = "QToolBar {background-color: gray}"
 TITLE_SELECTED = "QLabel{color: white; background-color: black}"
 TITLE_NOT_SELECTED = "QLabel{color: rgb(240, 198, 0); background-color: black}"
-
-
-class ImageButton(FigureCanvasQTAgg):
-
-    clicked = QtCore.Signal(tuple)
-
-    def __init__(self, image_stamp, parent=None):
-        self.parent = parent
-        self.image_stamp = image_stamp
-        fig = Figure(figsize=(1, 1))
-        fig.subplots_adjust(
-            left=0.0, right=1.0, top=1.0, bottom=0.0, wspace=0.0,
-            hspace=0.0)
-        super(ImageButton, self).__init__(fig)
-        # self.setAutoFillBackground(True)
-        # self.setStyleSheet("QWidget {alternate-background-color: black}")
-        self._figure = fig
-        self._ax = fig.add_subplot(111)
-        imgplot = self._ax.imshow(image_stamp.pds_image.image)
-        if image_stamp.pds_image.bands != 3:
-            imgplot.set_cmap('gray')
-        self._figure.set_facecolor('black')
-        self._ax.axis('off')
-        self.setFixedSize(PSIZE, PSIZE)
-
-    def mousePressEvent(self, event):
-        self.clicked.emit(self.image_stamp.position)
 
 
 class ImageStamp(object):
@@ -78,7 +53,7 @@ class ImageStamp(object):
 
     Parameters
     ----------
-    filename: string
+    file_name: string
         A file and its relative path from the current working directory
     row: int
         The row the image will be in by default
@@ -99,8 +74,6 @@ class ImageStamp(object):
         The column the image is in
     pds_image : planetaryimage object
         A planetaryimage object
-    position : tuple
-        The grid position of the image
     size : tuple
         The size of the image (this will be the same for every image)
     selected : bool
@@ -108,20 +81,105 @@ class ImageStamp(object):
     pds_compatible: bool
         Indicates whether planetaryimage can open the file
     """
-    def __init__(self, filename, row, column):
-        self.file_name = filename
-        self.abspath = os.path.abspath(filename)
-        self.basename = os.path.basename(filename)
+
+    size = (PSIZE, PSIZE)
+
+    def __init__(self, file_name, row, column):
+        self.file_name = file_name
+        self.abspath = os.path.abspath(file_name)
+        self.basename = os.path.basename(file_name)
         self.row = row
         self.column = column
+        self._selected = False
+        self.button = None
+        self.container = None
+        self.title = None
+        self.proxy_widget = None
         try:
-            self.pds_image = PDS3Image.open(filename)
-            self.position = (row, column)
-            self.size = (PSIZE, PSIZE)
-            self.selected = False
+            self.pds_image = PDS3Image.open(file_name)
             self.pds_compatible = True
-        except:
+        except Exception:
+            self.pds_image = None
             self.pds_compatible = False
+
+        if self.pds_compatible:
+            self._create_button()
+            self._create_title()
+            self._create_proxy_widget()
+
+    def __must_be_pds_compatible(func):
+        @wraps(func)
+        def wrapper(self):
+            if not self.pds_compatible:
+                raise RuntimeError("Image not pds compatible")
+            return func(self)
+        return wrapper
+
+    @__must_be_pds_compatible
+    def display_selected(self):
+        """Change the border to white"""
+        self.container.setStyleSheet(SELECTED)
+        self.title.setStyleSheet(TITLE_SELECTED)
+
+    @__must_be_pds_compatible
+    def display_not_selected(self):
+        """Change the border yellow"""
+        self.container.setStyleSheet(NOT_SELECTED)
+        self.title.setStyleSheet(TITLE_NOT_SELECTED)
+
+    @property
+    def selected(self):
+        return self._selected
+
+    @selected.setter
+    def selected(self, selected_state):
+        state_changed = self._selected != selected_state
+        if not state_changed:
+            return
+        self._selected = selected_state
+        if self._selected and self.pds_compatible:
+            self.display_selected()
+        elif not self._selected and self.pds_compatible:
+            self.display_not_selected()
+
+    @__must_be_pds_compatible
+    def _create_button(self):
+        """Create the button and set in the container"""
+        self.button = ImageButton(self)
+
+        # Create image container to create border, set button as parent
+        self.container = QtWidgets.QLabel()
+        self.container.setParent(self.button)
+        self.container.setStyleSheet(NOT_SELECTED)
+
+    @__must_be_pds_compatible
+    def _create_title(self):
+        """Create images title"""
+        # Make Title for each image as the file name, set button as parent
+        self.title = QtWidgets.QLabel(self.basename, self.button)
+        self.title.setFont(QtGui.QFont('Helvetica', 12))
+        self.title.setStyleSheet(TITLE_NOT_SELECTED)
+        self.title.setAlignment(QtCore.Qt.AlignTop)
+        self.title.setFixedWidth(PSIZE)
+
+        # Make image title fit in space by decreasing font size
+        title_metrics = self.title.fontMetrics()
+        title_width = title_metrics.boundingRect(self.title.text()).width()
+        font_size = 12
+        while title_width > PSIZE:
+            self.title.setFont(QtGui.QFont('Helvetica', font_size))
+            title_text = self.title.text()
+            title_metrics = self.title.fontMetrics()
+            title_width = title_metrics.boundingRect(title_text).width()
+            font_size -= 1
+
+    @__must_be_pds_compatible
+    def _create_proxy_widget(self):
+        """Set image button in proxy widget to add to graphics grid"""
+        self.proxy_widget = QtWidgets.QGraphicsProxyWidget()
+        self.proxy_widget.setWidget(self.button)
+        self.proxy_widget.setMinimumSize(PSIZE, PSIZE)
+        self.proxy_widget.setPalette(QtGui.QPalette(QtCore.Qt.black))
 
     def __repr__(self):
         return self.file_name
@@ -140,30 +198,149 @@ class ImageSet(object):
     images: list
         A list of ginga images with attributes set in ImageStamp that can be
         displayed in Pystmaps
+    columns : int
+        Number of columns the grid layout has
+    selected_images : list
+        List of ImageStamp that are selected
     """
     def __init__(self, filepaths):
-        row = 0
-        column = 0
+        self._views = set()
 
-        # Remove any duplicates
+        # Remove any duplicates while maintaining order
         seen = {}
-        self.inlist = []
+        inlist = []
         for filepath in filepaths:
             if filepath not in seen:
                 seen[filepath] = 1
-                self.inlist.append(filepath)
+                inlist.append(filepath)
 
         # Create image objects with attributes set in ImageStamp
         self.images = []
-        for image in self.inlist:
+        self.columns = 4
+        row = 0
+        column = 0
+        for image in inlist:
             image_stamp = ImageStamp(image, row, column)
             if image_stamp.pds_compatible:
                 self.images.append(image_stamp)
                 column += 1
-                if column == 4:
+                if column == self.columns:
                     row += 1
                     column = 0
-        self.selected = []
+        self.selected_images = []
+
+    def register(self, view):
+        self._views.add(view)
+
+    def unregister(self, view):
+        self._views.remove(view)
+
+    def set_image_selected(self, image):
+        """Set the image as selected, add to list, and display selection"""
+        image.selected = True
+        if image not in self.selected_images:
+            self.selected_images.append(image)
+        # for view in self._views:
+        #     view.display_selected(image)
+
+    def set_image_not_selected(self, image):
+        """Set image as not selected, remove from list, display unselection"""
+        image.selected = False
+        if image in self.selected_images:
+            self.selected_images.remove(image)
+        # for view in self._views:
+        #     view.display_not_selected(image)
+
+    def set_images_positions(self):
+        """Assign the positions based on columns and display in grid"""
+        row = 0
+        column = 0
+        for image in self.images:
+            # Reassign position only if different than before
+            image.row = row
+            image.column = column
+            column += 1
+            if column == self.columns:
+                row += 1
+                column = 0
+
+        for view in self._views:
+            view.set_grid_layout()
+
+
+class ImageSetController(object):
+    """ImageSet controller
+
+    Parameters
+    ----------
+    model : ImageSet
+    view : object
+        Associated view with the model
+    """
+
+    def __init__(self, model, view):
+        self.model = model
+        self.view = view
+
+    def select_image(self, image):
+        """Set image as selected or not selected"""
+        if image.selected:
+            self.model.set_image_not_selected(image)
+        else:
+            self.model.set_image_selected(image)
+
+    def select_all(self):
+        """Set all images as selected"""
+        for image in self.model.images:
+            self.model.set_image_selected(image)
+
+    def unselect_all(self):
+        """Set all images as not selected"""
+        for image in self.model.images:
+            self.model.set_image_not_selected(image)
+
+    def wrap_images(self, new_columns):
+        """Given new columns, reposition images"""
+        if new_columns != self.model.columns:
+            self.model.columns = new_columns
+            self.model.set_images_positions()
+
+
+class ImageButton(FigureCanvasQTAgg):
+    """Button containing the image
+
+    Parameters
+    ----------
+    image_stamp : ImageStamp
+    parent : QtQWidgets.QWidget
+    """
+
+    clicked = QtCore.Signal(object)
+
+    def __init__(self, image_stamp, parent=None):
+        self.parent = parent
+        self.image_stamp = image_stamp
+        fig = Figure(figsize=(1, 1))
+        fig.subplots_adjust(
+            left=0.0, right=1.0, top=1.0, bottom=0.0, wspace=0.0,
+            hspace=0.0)
+        super(ImageButton, self).__init__(fig)
+        self._figure = fig
+        self._ax = fig.add_subplot(111)
+        if len(image_stamp.pds_image.image.shape) == 1:
+            shape = image_stamp.pds_image.image.shape
+            data = image_stamp.pds_image.image.reshape((shape[0], 1))
+        else:
+            data = image_stamp.pds_image.image
+        imgplot = self._ax.imshow(data)
+        if image_stamp.pds_image.bands != 3:
+            imgplot.set_cmap('gray')
+        self._figure.set_facecolor('black')
+        self._ax.axis('off')
+        self.setFixedSize(PSIZE, PSIZE)
+
+    def mouseReleaseEvent(self, event):
+        self.clicked.emit(self.image_stamp)
 
 
 class ImageSetView(QtWidgets.QGraphicsView):
@@ -171,112 +348,71 @@ class ImageSetView(QtWidgets.QGraphicsView):
 
     Parameters
     ----------
-    image_list: list
-        A list of image objects with attributes set in ImageStamp"""
+    image_set: ImageSet
+    """
 
-    def __init__(self, image_list):
+    def __init__(self, image_set):
         super(ImageSetView, self).__init__()
         # Initialize Objects
-        self.images = image_list
+        self.image_set = image_set
+        self.image_set.register(self)
+        self.controller = ImageSetController(image_set, self)
+        self.images = image_set.images
 
         # Set Scene and Layout
-        self.scene = QtWidgets.QGraphicsScene()
+        scene = QtWidgets.QGraphicsScene()
         self.grid = QtWidgets.QGraphicsGridLayout()
-        self.selected = []
+        self.grid.setMaximumWidth(PSIZE)
 
-        # Set Images in Grid
         for image in self.images:
-            # Create an invisible button and signal to select image
-            image.button = ImageButton(image)
             image.button.clicked.connect(self.select_image)
-
-            # Create image container to create border, set button as parent
-            image.container = QtWidgets.QLabel()
-            image.container.setParent(image.button)
-            image.container.setStyleSheet(NOT_SELECTED)
-
-            # Make Title for each image as the file name, set button as parent
-            image.title = QtWidgets.QLabel(image.basename, image.button)
-            image.title.setFont(QtGui.QFont('Helvetica', 12))
-            image.title.setStyleSheet(TITLE_NOT_SELECTED)
-            image.title.setAlignment(QtCore.Qt.AlignTop)
-            image.title.setFixedWidth(PSIZE)
-
-            # Set image button in proxy widget to add to graphics grid.
-            # Because button is image's parent, adding button as image
-            image.picture = QtWidgets.QGraphicsProxyWidget()
-            image.picture.setWidget(image.button)
-            image.picture.setMinimumSize(PSIZE, PSIZE)
-            image.picture.setPalette(QtGui.QPalette(QtCore.Qt.black))
-
-            # Make image title fit in space by decreasing font size
-            title_width = image.title.fontMetrics()
-            title_width = title_width.boundingRect(image.title.text()).width()
-            font_size = 12
-            while title_width > PSIZE:
-                image.title.setFont(QtGui.QFont('Helvetica', font_size))
-                title_text = image.title.text()
-                title_width = image.title.fontMetrics()
-                title_width = title_width.boundingRect(title_text).width()
-                font_size -= 1
-
-            image.button.resize(PSIZE, PSIZE)
-
-            # Add picture to grid, move image/button down so room for title
             self.grid.addItem(
-                image.picture, image.row, image.column)
+                image.proxy_widget, image.row, image.column)
             image.container.move(0, image.title.height())
-            # image.button.move(0, image.title.height())
             image.title.setAlignment(QtCore.Qt.AlignCenter)
-            self.grid.setMaximumWidth(PSIZE)
             image.container.setFixedSize(PSIZE, PSIZE - image.title.height())
 
         # Set grid in view and MainWindow
-        layout_container = QtWidgets.QGraphicsWidget()
-        layout_container.setLayout(self.grid)
-        self.scene.addItem(layout_container)
-        self.setScene(self.scene)
+        self.layout_container = QtWidgets.QGraphicsWidget()
+        self.layout_container.setLayout(self.grid)
+        scene.addItem(self.layout_container)
+        self.setScene(scene)
         self.setBackgroundBrush(QtCore.Qt.black)
         self.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
-        self.verticalScrollBar().valueChanged.connect(self.scroll_update)
-        self.horizontalScrollBar().valueChanged.connect(self.scroll_update)
 
-    def select_image(self, pos=None):
-        """Updates the border indicating selected/not selected"""
+    def set_grid_layout(self):
+        self.grid = QtWidgets.QGraphicsGridLayout()
         for image in self.images:
-            if image.position == pos and image.selected:
-                image.container.setStyleSheet(NOT_SELECTED)
-                image.title.setStyleSheet(TITLE_NOT_SELECTED)
-                image.selected = False
-                if image.file_name in self.selected:
-                    self.selected.remove(image)
+            self.grid.addItem(image.proxy_widget, image.row, image.column)
+        self.layout_container.setLayout(self.grid)
 
-            elif image.position == pos and not(image.selected):
-                image.container.setStyleSheet(SELECTED)
-                image.title.setStyleSheet(TITLE_SELECTED)
-                image.selected = True
-                if image.file_name not in self.selected:
-                    self.selected.append(image)
-
-    def scroll_update(self):
-        """Makes sure images look correct while/after scrolling"""
-        pass
+    def select_image(self, image_stamp):
+        """Updates the border indicating selected/not selected"""
+        self.controller.select_image(image_stamp)
 
 
 class MainWindow(QtWidgets.QMainWindow):
     """Holds the tool bars and their actions
     Parameters
     ----------
-    image_list: list
-        A list of image objects with attributes set in ImageStamp"""
-    def __init__(self, image_list):
+    image_set: ImageSet
+    """
+
+    def __init__(self, image_set):
         super(MainWindow, self).__init__()
-        self.columns = 4
-        self.view = ImageSetView(image_list)
-        self.images = self.view.images
+        self.image_set = image_set
+        self.set_view = ImageSetView(image_set)
+        self.images = self.set_view.images
+        self.toolbar = None
+        self.select_all_action = None
+        self.view_action = None
+        self.not_installed_action = None
+        self.print_action = None
+        self.exit_action = None
         self.main_window_set()
-        self.selected_all_toggle = True
-        self.selected = self.view.selected
+        self.selected_all_toggle = False
+        self.selected = self.image_set.selected_images
+        self._pdsviewer = None
 
     def main_window_set(self):
         """Create the main window of GUI with tool bars"""
@@ -284,47 +420,40 @@ class MainWindow(QtWidgets.QMainWindow):
         title_height = 13
         min_frame_height = (PSIZE + title_height + TOOL_BAR_WIDTH) * 3
         min_frame_size = (min_frame_width, min_frame_height)
+        self.toolbar = self.addToolBar('PyStamps')
+        self.toolbar.setStyleSheet(TOOLBAR)
+        self.toolbar.setParent(self)
 
         # Create select all tool bar button
-        allAction = QtWidgets.QAction('&Select All/None', self)
-        allAction.triggered.connect(self.select_all)
-        self.selectAll = self.addToolBar('Select All/None')
-        self.selectAll.addAction(allAction)
-        self.selectAll.setStyleSheet(TOOLBAR)
-        self.selectAll.setParent(self)
+        self.select_all_action = QtWidgets.QAction('&Select All/None', self)
+        self.select_all_action.triggered.connect(self.select_all)
+        self.toolbar.addAction(self.select_all_action)
 
         # Create a open in pdsview tool bar button
-        viewAction = QtWidgets.QAction('&Open Selected in pdsview', self)
-        viewAction.triggered.connect(self.open_pdsview)
-        not_installed = QtWidgets.QAction('&Open Selected in pdsview', self)
-        not_installed.triggered.connect(self.pdsview_not_installed_window)
-        self.image_pdsview = self.addToolBar('Open Selected in pdsview')
+        self.view_action = QtWidgets.QAction('&Open Selected in pdsview', self)
+        self.view_action.triggered.connect(self.open_pdsview)
+        self.not_installed_action = QtWidgets.QAction(
+            '&Open Selected in pdsview', self)
+        self.not_installed_action.triggered.connect(
+            self.pdsview_not_installed_window)
         if PDSVIEW_INSTALLED:
-            self.image_pdsview.addAction(viewAction)
+            self.toolbar.addAction(self.view_action)
         else:
-            self.image_pdsview.addAction(not_installed)
-        self.image_pdsview.setStyleSheet(TOOLBAR)
-        self.image_pdsview.setParent(self)
-
+            self.toolbar.addAction(self.not_installed_action)
         # Create a print select images tool bar button
-        printAction = QtWidgets.QAction('&Print Selected Filenames', self)
-        printAction.triggered.connect(self.print_file)
-        self.print_image_path = self.addToolBar('Print Selected Filenames')
-        self.print_image_path.addAction(printAction)
-        self.print_image_path.setStyleSheet(TOOLBAR)
-        self.print_image_path.setParent(self)
+        self.print_action = QtWidgets.QAction(
+            '&Print Selected Filenames', self)
+        self.print_action.triggered.connect(self.print_file)
+        self.toolbar.addAction(self.print_action)
 
         # Create an close tool bar button
-        exitAction = QtWidgets.QAction('&Close', self)
-        exitAction.triggered.connect(self.close)
-        self.exit = self.addToolBar('Close')
-        self.exit.addAction(exitAction)
-        self.exit.setStyleSheet(TOOLBAR)
-        self.exit.setParent(self)
+        self.exit_action = QtWidgets.QAction('&Close', self)
+        self.exit_action.triggered.connect(self.close)
+        self.toolbar.addAction(self.exit_action)
 
         # Display Window
         self.setWindowTitle('Pystamps')
-        self.setCentralWidget(self.view)
+        self.setCentralWidget(self.set_view)
         self.resize(min_frame_size[0], min_frame_size[1])
         self.show()
 
@@ -337,27 +466,24 @@ class MainWindow(QtWidgets.QMainWindow):
     def select_all(self):
         """Toggle between selecting all images and none"""
         if self.selected_all_toggle:
-            for image in self.images:
-                image.selected = False
-                self.view.select_image(image.position)
-                self.selected_all_toggle = False
+            self.set_view.controller.unselect_all()
+            self.selected_all_toggle = False
         else:
-            for image in self.images:
-                image.selected = True
-                self.view.select_image(image.position)
-                self.selected_all_toggle = True
+            self.set_view.controller.select_all()
+            self.selected_all_toggle = True
 
     def open_pdsview(self):
         """Open selected images in pdsview"""
-        selected = []
-        for image in self.images:
-            if image.selected:
-                selected.append(image.file_name)
-        if len(selected) > 0:
-            self.image_set = pdsview.ImageSet(selected)
-            viewer = pdsview.PDSViewer(self.image_set)
-            viewer.resize(self.width(), self.height())
-            viewer.show()
+        if len(self.image_set.selected_images) > 0:
+            # TODO: When there is a remove method in pdsview.ImageSet, do not
+            # recreate the viewer each time. Only change the image_set
+            image_set = pdsview.ImageSet(
+                [image.file_name for image in
+                 self.image_set.selected_images]
+            )
+            self._pdsviewer = pdsview.PDSViewer(image_set)
+            self._pdsviewer.resize(self.width(), self.height())
+            self._pdsviewer.show()
         else:
             print("Must select images first")
 
@@ -367,64 +493,23 @@ class MainWindow(QtWidgets.QMainWindow):
         # This does not cause the program to crash so not to worry
         QtWidgets.QMessageBox.information(
             self, 'pdsview', "pdsview is not installed"
-            )
+        )
 
     def print_file(self):
         """Print the selected file absolute paths"""
-        space = False
-        none_select = True
-        for image in self.images:
-            if image.selected:
+        images_have_been_selected = len(self.image_set.selected_images) > 0
+        if images_have_been_selected:
+            for image in self.image_set.selected_images:
                 print(image.abspath)
-                space = True
-                none_select = False
-            else:
-                pass
-        if space:
             print("")
-        if none_select:
+        else:
             print("No Images Selected")
 
     def resizeEvent(self, resizeEvent):
         """Wrap images when a resize event occurs"""
-        images = self.images
         FRAME_WIDTH = self.width()
-        column = int(FRAME_WIDTH/PSIZE)
-        if column != self.columns:
-            grid_row = 0
-            grid_column = 0
-            for n in range(0, len(self.images)):
-                image = images[n]
-                # Reassign position only if different than before
-                if image.row != grid_row or image.column != grid_column:
-                    image.row = grid_row
-                    image.column = grid_column
-                    image.position = (grid_row, grid_column)
-                    image.wrap = True
-                else:
-                    image.wrap = False
-                grid_column += 1
-                if grid_column == column:
-                    grid_row += 1
-                    grid_column = 0
-            # Set images in order if frame is larger
-            if column > self.columns:
-                for w in (range(self.columns-1, len(self.images))):
-                    self.wrap_images(w)
-            # Set images in reversed order if frame is smaller
-            elif column < self.columns:
-                for w in reversed(range(self.columns-1, len(self.images))):
-                    self.wrap_images(w)
-            self.columns = column
-
-    def wrap_images(self, w):
-        "Wrap images based on size event"
-        image = self.images[w]
-        if image.wrap:
-            # image.button.setText(str(image.position))
-            # image.mapper.setMapping(image.button, str(image.position))
-            image.picture.setWidget(image.button)
-            self.view.grid.addItem(image.picture, image.row, image.column)
+        new_columns = int(FRAME_WIDTH / PSIZE)
+        self.set_view.controller.wrap_images(new_columns)
 
 
 def pystamps(inlist=None):
@@ -484,9 +569,6 @@ def pystamps(inlist=None):
     >>> example[#].pds_image.pds_attribute
     Access pds attributes
     # See planetaryimage documentation on accessible pds_iamge attributes
-    >>> example[#].BaseImage_Attribute
-    Because the images are ginga BaseImage objects you can access the BaseImage
-    attributes
     """
     files = []
     if isinstance(inlist, list):
@@ -503,10 +585,10 @@ def pystamps(inlist=None):
         files = glob('*')
 
     image_set = ImageSet(files)
-    display = MainWindow(image_set.images)
+    display = MainWindow(image_set)
     try:
         sys.exit(app.exec_())
-    except:
+    except Exception:
         pass
     return display.selected
 
