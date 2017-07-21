@@ -19,6 +19,12 @@ try:
 except ImportError:
     PDSVIEW_INSTALLED = False
 
+try:
+    from pdsspect import pdsspect
+    PDSSPECT_INSTALLED = True
+except ImportError:
+    PDSSPECT_INSTALLED = False
+
 qt_ver = int(QT_VERSION[0])
 if qt_ver == 4:
     from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg
@@ -440,6 +446,20 @@ class MainWindow(QtWidgets.QMainWindow):
             self.toolbar.addAction(self.view_action)
         else:
             self.toolbar.addAction(self.not_installed_action)
+
+        # Create a open in pdsspect tool bar button
+        self.spect_action = QtWidgets.QAction(
+            '&Open Selected in pdsspect', self)
+        self.spect_action.triggered.connect(self.open_pdsspect)
+        self.spect_not_installed_action = QtWidgets.QAction(
+            '&Open Selected in pdsspect', self)
+        self.spect_not_installed_action.triggered.connect(
+            self.pdsview_not_installed_window)
+        if PDSSPECT_INSTALLED:
+            self.toolbar.addAction(self.spect_action)
+        else:
+            self.toolbar.addAction(self.spect_not_installed_action)
+
         # Create a print select images tool bar button
         self.print_action = QtWidgets.QAction(
             '&Print Selected Filenames', self)
@@ -489,10 +509,24 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def pdsview_not_installed_window(self):
         """A Message box appears explaining that pdsview is not installed"""
-        # There is a bug in QMessageBox right now and prints an error message
-        # This does not cause the program to crash so not to worry
-        QtWidgets.QMessageBox.information(
+        QtWidgets.QMessageBox.warning(
             self, 'pdsview', "pdsview is not installed"
+        )
+
+    def open_pdsspect(self):
+        """Open selected images in pdsspect"""
+        if len(self.image_set.selected_images) > 0:
+            images = [
+                image.file_name for image in self.image_set.selected_images
+            ]
+            pdsspect.open_pdsspect(app, images)
+        else:
+            print("Must select images first")
+
+    def pdsspect_not_installed_window(self):
+        """A Message box appears explaining that pdsspect is not installed"""
+        QtWidgets.QMessageBox.warning(
+            self, 'pdsspect', "pdsspect is not installed"
         )
 
     def print_file(self):
@@ -609,6 +643,6 @@ def cli():
     parser.add_argument(
         'file', nargs='*',
         help="Input filename or glob for files with certain extensions"
-        )
+    )
     args = parser.parse_args()
     pystamps(args.file)
