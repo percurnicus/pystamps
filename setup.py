@@ -25,11 +25,11 @@ test_requirements = [
 setup(
     name='pystamps',
     version='0.1.0',
-    description="pystamps is the python equivalnlent of mer_stamps in idl",
+    description="View and select PDS images to open in pdsview or pdsspect",
     long_description=readme + '\n\n' + history,
-    author="Perry Vargas",
-    author_email='perrybvargas@gmail.com',
-    url='https://github.com/pbvarga1/pystamps',
+    author="PlanetaryPy Developers",
+    author_email='contact@planetarypy.com',
+    url='ttps://github.com/planetarypy/pdsspect',
     packages=[
         'pystamps',
     ],
@@ -37,7 +37,6 @@ setup(
                  'pystamps'},
     include_package_data=True,
     install_requires=[
-        'ginga>=2.6.0',
         'planetaryimage>=0.5.0',
         'matplotlib>=1.5.1'
     ],
