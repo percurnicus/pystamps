@@ -29,7 +29,7 @@ setup(
     long_description=readme + '\n\n' + history,
     author="PlanetaryPy Developers",
     author_email='contact@planetarypy.com',
-    url='ttps://github.com/planetarypy/pdsspect',
+    url='https://github.com/planetarypy/pystamps',
     packages=[
         'pystamps',
     ],
